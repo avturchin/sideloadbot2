@@ -7,35 +7,6 @@ import time
 import traceback
 import sys
 
-def ensure_directory_exists(directory):
-    """Создает папку если её нет"""
-    try:
-        # Используем абсолютный путь
-        abs_path = os.path.abspath(directory)
-        print(f"🔄 Создаём папку: {abs_path}")
-        
-        if not os.path.exists(abs_path):
-            os.makedirs(abs_path, exist_ok=True)
-            print(f"✅ Папка создана: {abs_path}")
-        else:
-            print(f"📁 Папка уже существует: {abs_path}")
-        
-        # Проверяем права записи
-        test_file = os.path.join(abs_path, 'test_write.tmp')
-        try:
-            with open(test_file, 'w') as f:
-                f.write('test')
-            os.remove(test_file)
-            print(f"✅ Права записи есть")
-            return True
-        except Exception as e:
-            print(f"❌ Нет прав записи: {e}")
-            return False
-            
-    except Exception as e:
-        print(f"❌ Ошибка создания папки {directory}: {e}")
-        return False
-
 def load_facts():
     """Загружает Facts.txt БЕЗ обрезания"""
     try:
@@ -416,12 +387,17 @@ def generate_science_commentary(model, top_3_news):
         return f"Научный Flash-Lite ошибка: {e}", analysis_prompt
 
 def save_science_results(commentary, top_3_news, init_response, prompt):
-    """Сохраняет результаты анализа ТОП-3 научных новостей"""
-    directory = 'science_commentary'
+    """Сохраняет результаты анализа ТОП-3 научных новостей в папку commentary6"""
+    directory = 'commentary6'
     
-    if not ensure_directory_exists(directory):
-        print(f"❌ Не удалось создать папку {directory}")
+    print(f"📁 Используем существующую папку: {directory}")
+    
+    # Проверяем существование папки
+    if not os.path.exists(directory):
+        print(f"❌ Папка {directory} не существует!")
         return False
+    
+    print(f"✅ Папка {directory} найдена")
     
     now = datetime.now()
     timestamp = now.strftime("%Y-%m-%d_%H-%M-%S") + f"-{now.microsecond}"
@@ -430,7 +406,7 @@ def save_science_results(commentary, top_3_news, init_response, prompt):
     try:
         main_filename = os.path.join(directory, f'science_top3_{timestamp}.md')
         
-        print(f"💾 Сохраняем анализ: {main_filename}")
+        print(f"💾 Сохраняем научный анализ: {main_filename}")
         
         with open(main_filename, 'w', encoding='utf-8') as f:
             f.write(f"# 🏆 ТОП-3 Научные Новости - Gemini 2.0 Flash-Lite\n")
@@ -463,69 +439,7 @@ def save_science_results(commentary, top_3_news, init_response, prompt):
             for i, item in enumerate(top_3_news, 1):
                 f.write(f"Новость {i}: {item['importance_score']} очков - {item['title'][:50]}...\n")
         
-        print(f"✅ ТОП-3 анализ сохранён: {main_filename}")
+        print(f"✅ ТОП-3 анализ сохранён в: {main_filename}")
         print(f"📊 Статистика: {stats_filename}")
         
-        # Проверяем, что файлы реально созданы
-        if os.path.exists(main_filename) and os.path.exists(stats_filename):
-            print(f"✅ Файлы подтверждены в папке: {os.path.abspath(directory)}")
-            return True
-        else:
-            print(f"❌ Файлы не найдены после сохранения!")
-            return False
-        
-    except Exception as e:
-        print(f"❌ Ошибка сохранения анализа ТОП-3: {e}")
-        traceback.print_exc()
-        return False
-
-def main():
-    try:
-        print("🏆 === GEMINI 2.0 FLASH-LITE ТОП-3 НАУЧНЫЙ АНАЛИЗАТОР ===")
-        
-        api_key = os.getenv('GEMINI_API_KEY')
-        if not api_key:
-            print("❌ Нет API ключа")
-            return False
-        
-        genai.configure(api_key=api_key)
-        
-        # Загружаем факты БЕЗ обрезания
-        facts = load_facts()
-        if not facts:
-            print("❌ Нет фактов")
-            return False
-        
-        # Инициализация научного Flash-Lite
-        model, init_response = initialize_science_flash_lite(facts)
-        if not model:
-            print("❌ Научный Flash-Lite не инициализирован")
-            return False
-        
-        time.sleep(1)
-        
-        # Получаем ТОП-3 научные новости
-        top_3_news = get_top_science_news()
-        if not top_3_news:
-            print("❌ Нет научных новостей для ТОП-3")
-            return False
-        
-        time.sleep(1)
-        
-        # Научный анализ ТОП-3 Flash-Lite
-        commentary, prompt = generate_science_commentary(model, top_3_news)
-        if not commentary:
-            print("❌ Flash-Lite не создал анализ ТОП-3")
-            return False
-        
-        # Сохранение в папку science_commentary
-        return save_science_results(commentary, top_3_news, init_response, prompt)
-        
-    except Exception as e:
-        print(f"❌ КРИТИЧЕСКАЯ ОШИБКА ТОП-3 FLASH-LITE: {e}")
-        traceback.print_exc()
-        return False
-
-if __name__ == "__main__":
-    success = main()
-    sys.exit(0 if success else 1)
+        # Проверяем, что
