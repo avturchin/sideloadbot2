@@ -10,16 +10,34 @@ import sys
 def ensure_directory_exists(directory):
     """Создает папку если её нет"""
     try:
-        if not os.path.exists(directory):
-            os.makedirs(directory, exist_ok=True)
-            print(f"✅ Папка {directory} создана")
-        return True
+        # Используем абсолютный путь
+        abs_path = os.path.abspath(directory)
+        print(f"🔄 Создаём папку: {abs_path}")
+        
+        if not os.path.exists(abs_path):
+            os.makedirs(abs_path, exist_ok=True)
+            print(f"✅ Папка создана: {abs_path}")
+        else:
+            print(f"📁 Папка уже существует: {abs_path}")
+        
+        # Проверяем права записи
+        test_file = os.path.join(abs_path, 'test_write.tmp')
+        try:
+            with open(test_file, 'w') as f:
+                f.write('test')
+            os.remove(test_file)
+            print(f"✅ Права записи есть")
+            return True
+        except Exception as e:
+            print(f"❌ Нет прав записи: {e}")
+            return False
+            
     except Exception as e:
         print(f"❌ Ошибка создания папки {directory}: {e}")
         return False
 
 def load_facts():
-    """Загружает Facts.txt с ограничением для Flash-Lite"""
+    """Загружает Facts.txt БЕЗ обрезания"""
     try:
         print("🔄 Загружаем файл Facts.txt...")
         
@@ -33,33 +51,7 @@ def load_facts():
         with open('Facts.txt', 'r', encoding='utf-8') as f:
             facts = f.read()
         
-        print(f"✅ Загружено: {len(facts)} символов")
-        
-        # ОГРАНИЧЕНИЕ для Flash-Lite: 30,000 символов
-        MAX_FACTS_SIZE = 30000
-        
-        if len(facts) > MAX_FACTS_SIZE:
-            print(f"⚠️ Файл слишком большой ({len(facts)} символов)")
-            print(f"🔪 Обрезаем до {MAX_FACTS_SIZE} символов для Flash-Lite")
-            
-            # Умное обрезание
-            truncated = facts[:MAX_FACTS_SIZE]
-            
-            # Ищем последнюю точку
-            search_start = max(MAX_FACTS_SIZE - 1500, 0)
-            last_dot = truncated.rfind('. ', search_start)
-            if last_dot > search_start:
-                facts = truncated[:last_dot + 2]
-            else:
-                # Ищем последний абзац
-                last_paragraph = truncated.rfind('\n\n', search_start)
-                if last_paragraph > search_start:
-                    facts = truncated[:last_paragraph + 2]
-                else:
-                    facts = truncated
-            
-            print(f"✂️ Итоговый размер: {len(facts)} символов")
-        
+        print(f"✅ Загружено: {len(facts)} символов БЕЗ ОБРЕЗАНИЯ")
         print(f"🔍 Начало: {facts[:120]}...")
         print(f"🔍 Конец: ...{facts[-120:]}")
         
@@ -131,10 +123,55 @@ def is_science_news(title, description):
     # Если есть научные слова и нет политических/экономических
     return science_score > 0 and exclude_score == 0
 
-def get_science_news():
-    """Получает только научные новости"""
-    print("🔬 Получаем НАУЧНЫЕ новости...")
-    science_news = []
+def rank_science_news(news_list):
+    """Ранжирует научные новости по важности"""
+    for news in news_list:
+        score = 0
+        text = (news['title'] + " " + news['description']).lower()
+        
+        # Высокоприоритетные темы
+        high_priority = [
+            'прорыв', 'революция', 'впервые', 'открытие', 'breakthrough',
+            'искусственный интеллект', 'ии', 'нейросеть', 'машинное обучение',
+            'космос', 'марс', 'луна', 'спутник', 'телескоп',
+            'рак', 'онкология', 'лечение', 'вакцина', 'генная терапия',
+            'квантовый', 'квантовые вычисления', 'нанотехнологии',
+            'стволовые клетки', 'регенерация', 'биотехнологии',
+            'климат', 'глобальное потепление', 'экология'
+        ]
+        
+        # Средний приоритет
+        medium_priority = [
+            'исследование', 'эксперимент', 'тест', 'технология',
+            'разработка', 'метод', 'система', 'устройство'
+        ]
+        
+        # Бонусы за ключевые слова
+        for keyword in high_priority:
+            if keyword in text:
+                score += 10
+        
+        for keyword in medium_priority:
+            if keyword in text:
+                score += 5
+        
+        # Бонус за свежесть (если источник авторитетный)
+        if news['source'] in ['N+1', 'Naked Science']:
+            score += 3
+        
+        # Бонус за длину описания (более подробные новости)
+        if len(news['description']) > 200:
+            score += 2
+        
+        news['importance_score'] = score
+    
+    # Сортируем по важности
+    return sorted(news_list, key=lambda x: x['importance_score'], reverse=True)
+
+def get_top_science_news():
+    """Получает ТОП-3 научные новости"""
+    print("🔬 Получаем ТОП-3 научные новости...")
+    all_science_news = []
     
     sources = [
         {
@@ -156,10 +193,6 @@ def get_science_news():
         {
             'url': 'https://lenta.ru/rss/news/science', 
             'name': 'Lenta.ru Наука'
-        },
-        {
-            'url': 'https://ria.ru/export/rss2/archive/index.xml', 
-            'name': 'РИА Новости'
         }
     ]
     
@@ -180,8 +213,7 @@ def get_science_news():
                 
                 print(f"📰 Найдено {len(items)} новостей, фильтруем научные...")
                 
-                source_science_count = 0
-                for item in items:
+                for item in items[:10]:  # Берём только первые 10 для анализа
                     try:
                         title = item.title.text.strip() if item.title else "Без заголовка"
                         description = ""
@@ -193,32 +225,36 @@ def get_science_news():
                         if is_science_news(title, description):
                             link = item.link.text.strip() if item.link else ""
                             
-                            science_news.append({
+                            all_science_news.append({
                                 'title': title,
                                 'description': description,
                                 'source': source['name'],
                                 'link': link
                             })
                             
-                            source_science_count += 1
-                            print(f"🔬 {source['name']}: {title[:80]}...")
-                            
-                            # Ограничиваем количество с каждого источника
-                            if source_science_count >= 5:
-                                break
+                            print(f"🔬 {source['name']}: {title[:60]}...")
                         
                     except Exception as e:
                         print(f"⚠️ Ошибка новости: {e}")
                         continue
-                
-                print(f"✅ {source['name']}: {source_science_count} научных новостей")
                         
         except Exception as e:
             print(f"❌ Ошибка {source['name']}: {e}")
             continue
     
-    print(f"🔬 ИТОГО: {len(science_news)} научных новостей")
-    return science_news
+    print(f"🔬 Всего научных новостей: {len(all_science_news)}")
+    
+    # Ранжируем по важности
+    ranked_news = rank_science_news(all_science_news)
+    
+    # Берём ТОП-3
+    top_3_news = ranked_news[:3]
+    
+    print(f"🏆 ТОП-3 научные новости:")
+    for i, news in enumerate(top_3_news, 1):
+        print(f"   {i}. {news['title'][:80]}... (очки: {news['importance_score']})")
+    
+    return top_3_news
 
 def initialize_science_flash_lite(facts):
     """Инициализирует Gemini 2.0 Flash-Lite для анализа науки"""
@@ -315,56 +351,54 @@ def initialize_science_flash_lite(facts):
         
         return None, str(e)
 
-def generate_science_commentary(model, science_news):
-    """Генерирует научный анализ через Flash-Lite"""
-    if not model or not science_news:
+def generate_science_commentary(model, top_3_news):
+    """Генерирует научный анализ ТОП-3 новостей через Flash-Lite"""
+    if not model or not top_3_news:
         return None, None
     
-    print("🔬 Flash-Lite анализирует научные новости...")
+    print("🔬 Flash-Lite анализирует ТОП-3 научные новости...")
     
-    # Формируем список научных новостей
-    news_text = ""
-    for i, item in enumerate(science_news, 1):
-        news_text += f"{i}. 🔬 {item['title']}\n"
+    # Формируем список ТОП-3 научных новостей
+    news_text = "🏆 ТОП-3 НАУЧНЫЕ НОВОСТИ:\n\n"
+    for i, item in enumerate(top_3_news, 1):
+        news_text += f"🥇 {i}. {item['title']}\n"
         if item['description']:
-            desc = item['description'][:250] + "..." if len(item['description']) > 250 else item['description']
-            news_text += f"   {desc}\n"
-        news_text += f"   ({item['source']})\n\n"
+            news_text += f"📋 {item['description']}\n"
+        news_text += f"📰 Источник: {item['source']}\n"
+        news_text += f"🎯 Важность: {item['importance_score']} очков\n\n"
     
-    # Специализированный научный промпт
-    analysis_prompt = f"""Проанализируй научные новости и открытия:
+    # Специализированный научный промпт для ТОП-3
+    analysis_prompt = f"""{news_text}
 
-{news_text}
-
-Дай экспертный анализ:
+Проанализируй эти ТОП-3 научные открытия и дай экспертный анализ:
 
 🔬 КЛЮЧЕВЫЕ ОТКРЫТИЯ:
-- Самые важные научные достижения
-- Прорывные исследования
+- Что самое важное в каждом открытии?
+- Какие прорывы произошли?
 
-🚀 ТЕХНОЛОГИЧЕСКИЕ ТРЕНДЫ:
-- Новые технологии и инновации
-- Развитие в ИИ, медицине, космосе
+🚀 НАУЧНАЯ ЗНАЧИМОСТЬ:
+- Почему эти открытия важны для науки?
+- Какие области знаний затронуты?
 
-🧬 МЕДИЦИНСКИЕ ДОСТИЖЕНИЯ:
-- Новые методы лечения
-- Биотехнологии и генетика
+🧬 ПРАКТИЧЕСКОЕ ПРИМЕНЕНИЕ:
+- Как это поможет людям?
+- Когда можно ждать внедрения?
 
 🌍 ВЛИЯНИЕ НА БУДУЩЕЕ:
-- Как эти открытия изменят мир
-- Практическое применение
+- Как эти открытия изменят мир?
+- Какие новые возможности открываются?
 
-Пиши научно, но понятно."""
+Пиши научно, но понятно. Фокусируйся на значимости открытий."""
     
     try:
         # Настройки для научного анализа
         generation_config = genai.types.GenerationConfig(
             temperature=0.8,
             top_p=0.9,
-            max_output_tokens=3000,  # Больше для подробного научного анализа
+            max_output_tokens=2000,  # Достаточно для анализа 3 новостей
         )
         
-        print(f"🔬 Flash-Lite генерирует научный анализ ({len(analysis_prompt)} символов)...")
+        print(f"🔬 Flash-Lite генерирует анализ ТОП-3 ({len(analysis_prompt)} символов)...")
         
         response = model.generate_content(
             analysis_prompt,
@@ -372,18 +406,21 @@ def generate_science_commentary(model, science_news):
         )
         
         if response and response.text:
-            print(f"✅ Научный анализ готов ({len(response.text)} символов)")
+            print(f"✅ Анализ ТОП-3 готов ({len(response.text)} символов)")
             return response.text, analysis_prompt
         else:
-            return "Flash-Lite: ошибка генерации научного анализа", analysis_prompt
+            return "Flash-Lite: ошибка генерации анализа ТОП-3", analysis_prompt
             
     except Exception as e:
-        print(f"❌ Ошибка научного анализа Flash-Lite: {e}")
+        print(f"❌ Ошибка анализа ТОП-3 Flash-Lite: {e}")
         return f"Научный Flash-Lite ошибка: {e}", analysis_prompt
 
-def save_science_results(commentary, science_news, init_response, prompt):
-    """Сохраняет результаты научного анализа"""
-    if not ensure_directory_exists('science_commentary'):
+def save_science_results(commentary, top_3_news, init_response, prompt):
+    """Сохраняет результаты анализа ТОП-3 научных новостей"""
+    directory = 'science_commentary'
+    
+    if not ensure_directory_exists(directory):
+        print(f"❌ Не удалось создать папку {directory}")
         return False
     
     now = datetime.now()
@@ -391,19 +428,23 @@ def save_science_results(commentary, science_news, init_response, prompt):
     date_formatted = now.strftime("%d.%m.%Y %H:%M:%S")
     
     try:
-        main_filename = f'science_commentary/science_analysis_{timestamp}.md'
+        main_filename = os.path.join(directory, f'science_top3_{timestamp}.md')
+        
+        print(f"💾 Сохраняем анализ: {main_filename}")
         
         with open(main_filename, 'w', encoding='utf-8') as f:
-            f.write(f"# 🔬 Анализ Научных Новостей - Gemini 2.0 Flash-Lite\n")
+            f.write(f"# 🏆 ТОП-3 Научные Новости - Gemini 2.0 Flash-Lite\n")
             f.write(f"## {date_formatted}\n\n")
-            f.write(f"*Научный анализ от Gemini 2.0 Flash-Lite*\n\n")
+            f.write(f"*Анализ топ-3 научных открытий от Gemini 2.0 Flash-Lite*\n\n")
             f.write("---\n\n")
             f.write(f"{commentary}\n\n")
             f.write("---\n\n")
-            f.write("## 🔬 Научные новости:\n\n")
+            f.write("## 🏆 ТОП-3 Научные новости:\n\n")
             
-            for i, item in enumerate(science_news, 1):
-                f.write(f"### {i}. 🔬 {item['title']}\n")
+            for i, item in enumerate(top_3_news, 1):
+                medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉"
+                f.write(f"### {medal} {i}. {item['title']}\n")
+                f.write(f"**Важность:** {item['importance_score']} очков\n\n")
                 if item['description']:
                     f.write(f"{item['description']}\n\n")
                 f.write(f"**Источник:** {item['source']}\n")
@@ -411,25 +452,36 @@ def save_science_results(commentary, science_news, init_response, prompt):
                     f.write(f"**Ссылка:** {item['link']}\n")
                 f.write("\n---\n\n")
         
-        stats_filename = f'science_commentary/science_stats_{timestamp}.txt'
+        stats_filename = os.path.join(directory, f'science_stats_{timestamp}.txt')
         with open(stats_filename, 'w', encoding='utf-8') as f:
-            f.write(f"=== НАУЧНЫЙ GEMINI 2.0 FLASH-LITE ===\n")
+            f.write(f"=== НАУЧНЫЙ GEMINI 2.0 FLASH-LITE ТОП-3 ===\n")
             f.write(f"Время: {date_formatted}\n")
             f.write(f"Модель: Gemini 2.0 Flash-Lite (Science)\n")
-            f.write(f"Научных новостей: {len(science_news)}\n")
+            f.write(f"Научных новостей: ТОП-3\n")
             f.write(f"Длина анализа: {len(commentary)} символов\n")
             f.write(f"ID: {timestamp}\n")
+            for i, item in enumerate(top_3_news, 1):
+                f.write(f"Новость {i}: {item['importance_score']} очков - {item['title'][:50]}...\n")
         
-        print(f"🔬 Научный анализ сохранён: {timestamp}")
-        return True
+        print(f"✅ ТОП-3 анализ сохранён: {main_filename}")
+        print(f"📊 Статистика: {stats_filename}")
+        
+        # Проверяем, что файлы реально созданы
+        if os.path.exists(main_filename) and os.path.exists(stats_filename):
+            print(f"✅ Файлы подтверждены в папке: {os.path.abspath(directory)}")
+            return True
+        else:
+            print(f"❌ Файлы не найдены после сохранения!")
+            return False
         
     except Exception as e:
-        print(f"❌ Ошибка сохранения научного анализа: {e}")
+        print(f"❌ Ошибка сохранения анализа ТОП-3: {e}")
+        traceback.print_exc()
         return False
 
 def main():
     try:
-        print("🔬 === GEMINI 2.0 FLASH-LITE НАУЧНЫЙ АНАЛИЗАТОР ===")
+        print("🏆 === GEMINI 2.0 FLASH-LITE ТОП-3 НАУЧНЫЙ АНАЛИЗАТОР ===")
         
         api_key = os.getenv('GEMINI_API_KEY')
         if not api_key:
@@ -438,7 +490,7 @@ def main():
         
         genai.configure(api_key=api_key)
         
-        # Загружаем факты
+        # Загружаем факты БЕЗ обрезания
         facts = load_facts()
         if not facts:
             print("❌ Нет фактов")
@@ -452,25 +504,25 @@ def main():
         
         time.sleep(1)
         
-        # Получаем ТОЛЬКО научные новости
-        science_news = get_science_news()
-        if not science_news:
-            print("❌ Нет научных новостей")
+        # Получаем ТОП-3 научные новости
+        top_3_news = get_top_science_news()
+        if not top_3_news:
+            print("❌ Нет научных новостей для ТОП-3")
             return False
         
         time.sleep(1)
         
-        # Научный анализ Flash-Lite
-        commentary, prompt = generate_science_commentary(model, science_news)
+        # Научный анализ ТОП-3 Flash-Lite
+        commentary, prompt = generate_science_commentary(model, top_3_news)
         if not commentary:
-            print("❌ Flash-Lite не создал научный анализ")
+            print("❌ Flash-Lite не создал анализ ТОП-3")
             return False
         
         # Сохранение в папку science_commentary
-        return save_science_results(commentary, science_news, init_response, prompt)
+        return save_science_results(commentary, top_3_news, init_response, prompt)
         
     except Exception as e:
-        print(f"❌ КРИТИЧЕСКАЯ ОШИБКА НАУЧНОГО FLASH-LITE: {e}")
+        print(f"❌ КРИТИЧЕСКАЯ ОШИБКА ТОП-3 FLASH-LITE: {e}")
         traceback.print_exc()
         return False
 
