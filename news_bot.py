@@ -60,15 +60,39 @@ def load_facts():
             with open('Facts.txt', 'w', encoding='utf-8') as f:
                 f.write(default_facts.strip())
             print("✅ Создан базовый файл Facts.txt")
+            return default_facts.strip()
             
         with open('Facts.txt', 'r', encoding='utf-8') as f:
             facts = f.read()
+        
+        # Ограничиваем размер фактов до разумного лимита
+        if len(facts) > 50000:
+            print(f"⚠️ Facts.txt слишком большой ({len(facts)} символов), обрезаем до 50000")
+            facts = facts[:50000] + "\n[...файл обрезан из-за размера...]"
+        
         print(f"✅ Загружена база фактов ({len(facts)} символов)")
         return facts
         
     except Exception as e:
         print(f"❌ Ошибка работы с Facts.txt: {e}")
         return "Базовые знания для анализа новостей."
+
+def get_available_models():
+    """Получает список доступных моделей Gemini"""
+    try:
+        print("🔄 Проверяем доступные модели Gemini...")
+        models = genai.list_models()
+        available_models = []
+        
+        for model in models:
+            if 'generateContent' in model.supported_generation_methods:
+                available_models.append(model.name)
+                print(f"✅ Доступная модель: {model.name}")
+        
+        return available_models
+    except Exception as e:
+        print(f"❌ Ошибка получения списка моделей: {e}")
+        return []
 
 def get_news():
     """Получает последние новости с новостных сайтов"""
@@ -83,10 +107,6 @@ def get_news():
         {
             'url': 'https://ria.ru/export/rss2/archive/index.xml',
             'name': 'РИА Новости'
-        },
-        {
-            'url': 'https://tass.ru/rss/v2.xml',
-            'name': 'ТАСС'
         }
     ]
     
@@ -98,7 +118,7 @@ def get_news():
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
             }
             
-            response = requests.get(source['url'], timeout=20, headers=headers)
+            response = requests.get(source['url'], timeout=15, headers=headers)
             print(f"✅ Ответ получен от {source['name']} (статус: {response.status_code})")
             
             if response.status_code != 200:
@@ -127,11 +147,11 @@ def get_news():
                     # Очищаем от HTML тегов в описании
                     if description:
                         desc_soup = BeautifulSoup(description, 'html.parser')
-                        description = desc_soup.get_text().strip()
+                        description = desc_soup.get_text().strip()[:300]  # Ограничиваем размер
                     
                     news_items.append({
-                        'title': title,
-                        'description': description[:400] if description else "",
+                        'title': title[:200],  # Ограничиваем размер заголовка
+                        'description': description,
                         'link': link,
                         'source': source['name'],
                         'pub_date': pub_date
@@ -164,30 +184,55 @@ def get_news():
 def initialize_gemini_with_facts(facts):
     """Инициализирует Gemini с базой фактов"""
     
+    print("🔄 Получаем список доступных моделей...")
+    available_models = get_available_models()
+    
+    if not available_models:
+        print("❌ Не найдено доступных моделей")
+        return None, "Нет доступных моделей"
+    
+    # Пробуем разные модели по приоритету
+    model_priorities = [
+        'models/gemini-1.5-flash',
+        'models/gemini-1.5-pro', 
+        'models/gemini-1.0-pro',
+        'models/gemini-pro'
+    ]
+    
+    selected_model = None
+    for preferred_model in model_priorities:
+        if preferred_model in available_models:
+            selected_model = preferred_model
+            break
+    
+    if not selected_model:
+        selected_model = available_models[0]  # Берем первую доступную
+    
+    print(f"🔄 Используем модель: {selected_model}")
+    
+    # Сокращаем факты если они слишком длинные
+    max_facts_length = 10000  # Максимум 10к символов для фактов
+    if len(facts) > max_facts_length:
+        facts = facts[:max_facts_length] + "\n[...обрезано...]"
+    
     print("🔄 Подготавливаем промпт для инициализации...")
     initialization_prompt = f"""
-Ты - опытный российский журналист-аналитик. Изучи следующую базу фактов и используй её для анализа текущих событий:
+Ты - российский журналист-аналитик. Изучи эту базу фактов:
 
 {facts}
 
-Эти факты помогут тебе:
-- Давать контекст происходящим событиям
-- Анализировать причины и следствия
-- Делать обоснованные прогнозы
-- Объяснять связи между событиями
-
-Подтверди, что ты изучил эту информацию и готов анализировать новости на русском языке.
+Используй эти факты для анализа текущих событий. Подтверди готовность одним предложением.
 """
     
     try:
         print("🔄 Создаем модель Gemini...")
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel(selected_model)
         
         generation_config = genai.types.GenerationConfig(
             temperature=0.7,
             top_p=0.8,
             top_k=40,
-            max_output_tokens=800,
+            max_output_tokens=300,  # Сокращаем для инициализации
         )
         
         print("🔄 Отправляем запрос инициализации к Gemini API...")
@@ -204,7 +249,7 @@ def initialize_gemini_with_facts(facts):
         
         print("✅ Получен ответ от Gemini на инициализацию")
         print(f"📝 Длина ответа: {len(response.text)} символов")
-        print(f"🔍 Начало ответа: {response.text[:100]}...")
+        print(f"🔍 Ответ: {response.text[:200]}...")
         
         return model, response.text
         
@@ -221,28 +266,26 @@ def generate_commentary(model, news_items, facts):
         
     print("🔄 Формируем промпт для анализа новостей...")
     
-    # Формируем список новостей для промпта
+    # Формируем список новостей для промпта (ограничиваем размер)
     news_text = ""
-    for i, item in enumerate(news_items, 1):
+    for i, item in enumerate(news_items[:5], 1):  # Максимум 5 новостей
         news_text += f"{i}. {item['title']}\n"
         if item['description']:
-            news_text += f"   {item['description']}\n"
+            news_text += f"   {item['description'][:200]}...\n"  # Ограничиваем описание
         news_text += f"   Источник: {item['source']}\n\n"
     
     news_analysis_prompt = f"""
-Теперь проанализируй эти текущие новости, используя изученную базу фактов:
+Проанализируй эти новости и напиши краткий комментарий (400-500 слов):
 
 {news_text}
 
-Напиши аналитический комментарий (500-700 слов) на русском языке, который включает:
+Включи:
+1. Главные тенденции
+2. Контекст событий  
+3. Анализ причин
+4. Возможные последствия
 
-1. **ГЛАВНЫЕ ТРЕНДЫ**: Какие основные тенденции видны в новостях?
-2. **КОНТЕКСТ**: Как эти события связаны с известными фактами и предыдущими событиями?
-3. **АНАЛИЗ ПРИЧИН**: Почему происходят эти события?
-4. **ПРОГНОЗ**: Какие могут быть последствия?
-5. **СВЯЗИ**: Как события влияют друг на друга?
-
-Пиши профессионально, объективно, опираясь на факты. Структурируй ответ с подзаголовками.
+Пиши на русском языке, структурированно.
 """
     
     try:
@@ -250,7 +293,7 @@ def generate_commentary(model, news_items, facts):
             temperature=0.7,
             top_p=0.8,
             top_k=40,
-            max_output_tokens=1500,
+            max_output_tokens=1000,  # Ограничиваем размер ответа
         )
         
         print("🔄 Отправляем запрос анализа новостей к Gemini API...")
@@ -268,16 +311,6 @@ def generate_commentary(model, news_items, facts):
         print("✅ Получен ответ от Gemini с анализом")
         print(f"📝 Длина анализа: {len(response.text)} символов")
         print(f"🔍 Начало анализа: {response.text[:150]}...")
-        
-        # Проверяем на блокировку контента
-        try:
-            if hasattr(response, 'candidates') and response.candidates:
-                if hasattr(response.candidates[0], 'finish_reason'):
-                    if response.candidates[0].finish_reason.name == "SAFETY":
-                        print("⚠️ Контент заблокирован системой безопасности")
-                        return "Комментарий не может быть сгенерирован из-за ограничений безопасности.", news_analysis_prompt
-        except:
-            pass  # Игнорируем ошибки проверки безопасности
         
         return response.text, news_analysis_prompt
         
@@ -324,30 +357,6 @@ def save_commentary(commentary, news_items, initialization_response, news_prompt
             print(f"✅ Основной комментарий сохранен: {main_filename} ({file_size} байт)")
         else:
             print(f"❌ Ошибка: файл {main_filename} не создался")
-            return False
-        
-        # Сохраняем отдельный файл с полным диалогом
-        dialog_filename = f'commentary/full_dialog_{timestamp}.md'
-        print(f"🔄 Сохраняем диалог: {dialog_filename}")
-        
-        with open(dialog_filename, 'w', encoding='utf-8') as f:
-            f.write(f"# Полный диалог с Gemini - {date_formatted}\n\n")
-            f.write("## 1. Инициализация с базой фактов\n\n")
-            f.write("**Ответ Gemini на инициализацию:**\n")
-            f.write(f"{initialization_response}\n\n")
-            f.write("---\n\n")
-            f.write("## 2. Запрос на анализ новостей\n\n")
-            f.write("**Отправленный промпт:**\n")
-            f.write(f"```\n{news_prompt}\n```\n\n")
-            f.write("**Ответ Gemini:**\n")
-            f.write(f"{commentary}\n\n")
-        
-        # Проверяем что файл создался
-        if os.path.exists(dialog_filename):
-            file_size = os.path.getsize(dialog_filename)
-            print(f"✅ Полный диалог сохранен: {dialog_filename} ({file_size} байт)")
-        else:
-            print(f"❌ Ошибка: файл {dialog_filename} не создался")
             return False
         
         # Создаем также краткий файл со статистикой
