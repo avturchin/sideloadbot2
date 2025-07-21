@@ -1,33 +1,26 @@
-name: News Commentary Bot (Gemini)
-on:
-  schedule:
-    - cron: '0 * * * *'  # Каждый час
-  workflow_dispatch:  # Возможность запуска вручную
-
-jobs:
-  comment-news:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
-        
-    - name: Install dependencies
-      run: |
-        pip install google-generativeai requests beautifulsoup4 lxml
-        
-    - name: Run news commentary
-      env:
-        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      run: python news_bot.py
-      
-    - name: Commit and push results
+- name: Commit and push results
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        git add commentary/
-        git commit -m "Добавлен комментарий к новостям $(date)" || exit 0
-        git push
+        
+        echo "=== Проверка файлов перед коммитом ==="
+        if [ -d "commentary" ]; then
+          echo "✅ Папка commentary существует"
+          echo "Содержимое:"
+          ls -la commentary/ || echo "Папка пуста"
+        else
+          echo "❌ Папка commentary не существует"
+        fi
+        
+        echo "=== Добавление файлов в Git ==="
+        git add . || true
+        
+        echo "=== Проверка изменений ==="
+        if git diff --staged --quiet; then
+          echo "ℹ️ Нет новых файлов для коммита"
+          exit 0
+        else
+          echo "✅ Найдены изменения, создаем коммит"
+          git commit -m "Добавлен комментарий к новостям $(date)"
+          git push
+        fi
