@@ -430,16 +430,4 @@ def save_science_results(commentary, top_3_news, init_response, prompt):
         
         stats_filename = os.path.join(directory, f'science_stats_{timestamp}.txt')
         with open(stats_filename, 'w', encoding='utf-8') as f:
-            f.write(f"=== НАУЧНЫЙ GEMINI 2.0 FLASH-LITE ТОП-3 ===\n")
-            f.write(f"Время: {date_formatted}\n")
-            f.write(f"Модель: Gemini 2.0 Flash-Lite (Science)\n")
-            f.write(f"Научных новостей: ТОП-3\n")
-            f.write(f"Длина анализа: {len(commentary)} символов\n")
-            f.write(f"ID: {timestamp}\n")
-            for i, item in enumerate(top_3_news, 1):
-                f.write(f"Новость {i}: {item['importance_score']} очков - {item['title'][:50]}...\n")
-        
-        print(f"✅ ТОП-3 анализ сохранён в: {main_filename}")
-        print(f"📊 Статистика: {stats_filename}")
-        
-        # Проверяем, что
+            f.write(f"=== НАУЧ
