@@ -1,26 +1,35 @@
-- name: Commit and push results
+name: News Commentary Bot (Gemini)
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+jobs:
+  comment-news:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Debug - Check files
       run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        
-        echo "=== Проверка файлов перед коммитом ==="
-        if [ -d "commentary" ]; then
-          echo "✅ Папка commentary существует"
-          echo "Содержимое:"
-          ls -la commentary/ || echo "Папка пуста"
+        echo "=== Список файлов ==="
+        ls -la
+        echo "=== Проверка Facts.txt ==="
+        if [ -f "Facts.txt" ]; then
+          echo "✅ Facts.txt найден"
+          echo "Размер: $(wc -c < Facts.txt) байт"
         else
-          echo "❌ Папка commentary не существует"
+          echo "❌ Facts.txt НЕ найден"
         fi
-        
-        echo "=== Добавление файлов в Git ==="
-        git add . || true
-        
-        echo "=== Проверка изменений ==="
-        if git diff --staged --quiet; then
-          echo "ℹ️ Нет новых файлов для коммита"
-          exit 0
+        echo "=== Проверка Python файла ==="
+        if [ -f "news_bot.py" ]; then
+          echo "✅ news_bot.py найден"
         else
-          echo "✅ Найдены изменения, создаем коммит"
-          git commit -m "Добавлен комментарий к новостям $(date)"
-          git push
+          echo "❌ news_bot.py НЕ найден"
         fi
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
