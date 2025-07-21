@@ -7,6 +7,19 @@ import time
 import traceback
 import sys
 
+def ensure_directory_exists(directory):
+    """Создает папку если её нет"""
+    try:
+        if not os.path.exists(directory):
+            os.makedirs(directory, exist_ok=True)
+            print(f"✅ Папка {directory} создана")
+        else:
+            print(f"📁 Папка {directory} уже существует")
+        return True
+    except Exception as e:
+        print(f"❌ Ошибка создания папки {directory}: {e}")
+        return False
+
 def load_facts():
     """Загружает Facts.txt БЕЗ обрезания"""
     try:
@@ -390,14 +403,10 @@ def save_science_results(commentary, top_3_news, init_response, prompt):
     """Сохраняет результаты анализа ТОП-3 научных новостей в папку commentary6"""
     directory = 'commentary6'
     
-    print(f"📁 Используем существующую папку: {directory}")
-    
-    # Проверяем существование папки
-    if not os.path.exists(directory):
-        print(f"❌ Папка {directory} не существует!")
+    # Создаем папку если её нет
+    if not ensure_directory_exists(directory):
+        print(f"❌ Не удалось создать папку {directory}")
         return False
-    
-    print(f"✅ Папка {directory} найдена")
     
     now = datetime.now()
     timestamp = now.strftime("%Y-%m-%d_%H-%M-%S") + f"-{now.microsecond}"
