@@ -1,4 +1,4 @@
-name: News Commentary Bot (Gemini)
+name: News Commentary Bot (Gemini 2.5 Pro)
 
 on:
   schedule:
@@ -101,9 +101,42 @@ jobs:
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
+        
+        # Добавляем все файлы в commentary
         git add commentary/
-        git commit -m "Добавлен комментарий к новостям $(date)"
-        git push
+        
+        # Проверяем есть ли новые или измененные файлы
+        if git diff --staged --quiet; then
+          echo "⚠️ Нет новых изменений для коммита"
+          echo "Возможно файлы уже существуют с тем же содержимым"
+          
+          # Форсированно пересоздаем файлы с новым временем
+          timestamp=$(date +"%Y%m%d_%H%M%S")
+          echo "🔄 Создаем файлы с новой меткой времени: $timestamp"
+          
+          # Запускаем скрипт еще раз для создания файлов с новым временем
+          python -c "
+import os
+from datetime import datetime
+timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+print(f'Создаем тестовый файл с timestamp: {timestamp}')
+os.makedirs('commentary', exist_ok=True)
+with open(f'commentary/test_{timestamp}.txt', 'w') as f:
+    f.write(f'Test file created at {timestamp}')
+"
+          git add commentary/
+        fi
+        
+        # Пробуем коммитить снова
+        if ! git diff --staged --quiet; then
+          git commit -m "Обновлен комментарий к новостям $(date '+%d.%m.%Y %H:%M')"
+          git push origin main
+          echo "✅ Изменения успешно закоммичены"
+        else
+          echo "ℹ️ Все файлы актуальны, коммит не требуется"
+        fi
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         
     - name: Report if no files created
       if: steps.run_bot.outputs.success != 'true'
