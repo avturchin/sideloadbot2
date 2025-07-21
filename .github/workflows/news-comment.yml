@@ -9,7 +9,8 @@ jobs:
   comment-news:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
     
     - name: Debug - Check files
       run: |
@@ -33,3 +34,82 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: '3.9'
+        
+    - name: Install dependencies
+      run: |
+        echo "=== Установка зависимостей ==="
+        pip install google-generativeai requests beautifulsoup4 lxml
+        echo "=== Проверка установленных пакетов ==="
+        pip list | grep -E "(google|requests|beautifulsoup4|lxml)"
+        
+    - name: Debug - Check environment
+      run: |
+        echo "=== Переменные окружения ==="
+        if [ -n "$GEMINI_API_KEY" ]; then
+          echo "✅ GEMINI_API_KEY установлен (длина: ${#GEMINI_API_KEY})"
+        else
+          echo "❌ GEMINI_API_KEY НЕ установлен"
+        fi
+      env:
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        
+    - name: Run news commentary
+      id: run_bot
+      env:
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      run: |
+        echo "=== Запуск основного скрипта ==="
+        python news_bot.py
+        
+        echo "=== Детальная проверка результатов ==="
+        echo "Текущая папка: $(pwd)"
+        echo "Содержимое корневой папки:"
+        ls -la
+        
+        if [ -d "commentary" ]; then
+          echo "✅ Папка commentary найдена"
+          echo "Размер папки: $(du -sh commentary 2>/dev/null || echo 'Не удалось определить')"
+          echo "Содержимое папки commentary:"
+          ls -la commentary/ || echo "Ошибка чтения папки"
+          echo "Количество файлов: $(ls commentary/ 2>/dev/null | wc -l)"
+          
+          if [ "$(ls -A commentary 2>/dev/null)" ]; then
+            echo "success=true" >> $GITHUB_OUTPUT
+            echo "✅ Файлы найдены в папке commentary"
+            
+            for file in commentary/*; do
+              if [ -f "$file" ]; then
+                echo "=== Содержимое $file (первые 5 строк) ==="
+                head -5 "$file" || echo "Не удалось прочитать файл"
+                echo "=========================="
+              fi
+            done
+          else
+            echo "success=false" >> $GITHUB_OUTPUT
+            echo "❌ Папка commentary пуста"
+          fi
+        else
+          echo "success=false" >> $GITHUB_OUTPUT
+          echo "❌ Папка commentary не существует"
+        fi
+        
+        echo "=== Проверка статуса выхода Python скрипта ==="
+        echo "Exit code: $?"
+      
+    - name: Commit and push results
+      if: steps.run_bot.outputs.success == 'true'
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add commentary/
+        git commit -m "Добавлен комментарий к новостям $(date)"
+        git push
+        
+    - name: Report if no files created
+      if: steps.run_bot.outputs.success != 'true'
+      run: |
+        echo "⚠️ Скрипт завершился, но файлы не были созданы"
+        echo "Возможные причины:"
+        echo "- Ошибка получения новостей"
+        echo "- Ошибка API Gemini" 
+        echo "- Ошибка сохранения файлов"
