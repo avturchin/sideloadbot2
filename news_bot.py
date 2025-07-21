@@ -400,8 +400,8 @@ def generate_science_commentary(model, top_3_news):
         return f"Научный Flash-Lite ошибка: {e}", analysis_prompt
 
 def save_science_results(commentary, top_3_news, init_response, prompt):
-    """Сохраняет результаты анализа ТОП-3 научных новостей в папку commentary6"""
-    directory = 'commentary6'
+    """Сохраняет результаты анализа ТОП-3 научных новостей в папку commentary"""
+    directory = 'commentary'
     
     # Создаем папку если её нет
     if not ensure_directory_exists(directory):
@@ -453,14 +453,14 @@ def save_science_results(commentary, top_3_news, init_response, prompt):
         
         # Проверяем, что файлы реально созданы
         if os.path.exists(main_filename) and os.path.exists(stats_filename):
-            print("✅ Файлы подтверждены в папке commentary6")
+            print("✅ Файлы подтверждены в папке commentary")
             return True
         else:
             print("❌ Файлы не найдены после сохранения!")
             return False
         
     except Exception as e:
-        print(f"❌ Ошибка сохранения в commentary6: {e}")
+        print(f"❌ Ошибка сохранения в commentary: {e}")
         traceback.print_exc()
         return False
 
