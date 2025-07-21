@@ -8,6 +8,20 @@ import time
 # Настройка Gemini API
 genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
 
+def load_facts():
+    """Загружает базу фактов из файла"""
+    try:
+        with open('Facts.txt', 'r', encoding='utf-8') as f:
+            facts = f.read()
+        print(f"Загружена база фактов ({len(facts)} символов)")
+        return facts
+    except FileNotFoundError:
+        print("ПРЕДУПРЕЖДЕНИЕ: Файл Facts.txt не найден")
+        return "Базовые факты для анализа новостей не загружены."
+    except Exception as e:
+        print(f"Ошибка загрузки Facts.txt: {e}")
+        return "Ошибка загрузки базы фактов."
+
 def get_news():
     """Получает последние новости с новостных сайтов"""
     news_items = []
@@ -55,10 +69,50 @@ def get_news():
     
     return news_items
 
-def generate_commentary(news_items):
+def initialize_gemini_with_facts(facts):
+    """Инициализирует Gemini с базой фактов"""
+    
+    initialization_prompt = f"""
+Ты - опытный российский журналист-аналитик. Изучи следующую базу фактов и используй её для анализа текущих событий:
+
+{facts}
+
+Эти факты помогут тебе:
+- Давать контекст происходящим событиям
+- Анализировать причины и следствия
+- Делать обоснованные прогнозы
+- Объяснять связи между событиями
+
+Подтверди, что ты изучил эту информацию и готов анализировать новости.
+"""
+    
+    try:
+        model = genai.GenerativeModel('gemini-pro')
+        
+        generation_config = genai.types.GenerationConfig(
+            temperature=0.7,
+            top_p=0.8,
+            top_k=40,
+            max_output_tokens=500,
+        )
+        
+        print("Инициализируем Gemini с базой фактов...")
+        response = model.generate_content(
+            initialization_prompt,
+            generation_config=generation_config
+        )
+        
+        print("✅ Gemini инициализирован с базой фактов")
+        return model, response.text
+        
+    except Exception as e:
+        print(f"Ошибка инициализации Gemini: {e}")
+        return None, None
+
+def generate_commentary(model, news_items, facts):
     """Генерирует комментарий к новостям через Gemini"""
-    if not news_items:
-        return None
+    if not news_items or not model:
+        return None, None
         
     # Формируем список новостей для промпта
     news_text = ""
@@ -68,52 +122,48 @@ def generate_commentary(news_items):
             news_text += f"   {item['description']}\n"
         news_text += f"   Источник: {item['source']}\n\n"
     
-    prompt = f"""
-Проанализируй следующие новости и напиши аналитический комментарий на русском языке (300-400 слов):
+    news_analysis_prompt = f"""
+Теперь проанализируй эти текущие новости, используя изученную базу фактов:
 
 {news_text}
 
-Требования к комментарию:
-- Выдели основные тренды и связи между событиями
-- Проанализируй возможные последствия
-- Дай контекст происходящего
-- Пиши как опытный журналист-аналитик
-- Будь объективным и взвешенным
-- Структурируй текст с подзаголовками
+Напиши аналитический комментарий (400-500 слов), который включает:
 
-Формат ответа: чистый текст без markdown разметки.
+1. ГЛАВНЫЕ ТРЕНДЫ: Какие основные тенденции видны в новостях?
+2. КОНТЕКСТ: Как эти события связаны с известными фактами и предыдущими событиями?
+3. АНАЛИЗ ПРИЧИН: Почему происходят эти события?
+4. ПРОГНОЗ: Какие могут быть последствия?
+5. СВЯЗИ: Как события влияют друг на друга?
+
+Пиши профессионально, объективно, опираясь на факты. Структурируй ответ с подзаголовками.
 """
     
     try:
-        # Используем Gemini Pro
-        model = genai.GenerativeModel('gemini-pro')
-        
-        # Настройки генерации
         generation_config = genai.types.GenerationConfig(
             temperature=0.7,
             top_p=0.8,
             top_k=40,
-            max_output_tokens=1000,
+            max_output_tokens=1200,
         )
         
-        print("Отправляем запрос к Gemini...")
+        print("Генерируем анализ новостей...")
         response = model.generate_content(
-            prompt,
+            news_analysis_prompt,
             generation_config=generation_config
         )
         
         # Проверяем на блокировку контента
         if response.candidates[0].finish_reason.name == "SAFETY":
             print("Контент заблокирован системой безопасности")
-            return "Комментарий не может быть сгенерирован из-за ограничений безопасности."
+            return "Комментарий не может быть сгенерирован из-за ограничений безопасности.", None
         
-        return response.text
+        return response.text, news_analysis_prompt
         
     except Exception as e:
         print(f"Ошибка генерации комментария: {e}")
-        return None
+        return None, None
 
-def save_commentary(commentary, news_items):
+def save_commentary(commentary, news_items, initialization_response, news_prompt):
     """Сохраняет комментарий в файл"""
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
     date_formatted = datetime.now().strftime("%d.%m.%Y %H:%M")
@@ -121,9 +171,9 @@ def save_commentary(commentary, news_items):
     # Создаем папку если её нет
     os.makedirs('commentary', exist_ok=True)
     
-    # Сохраняем комментарий
-    filename = f'commentary/news_commentary_{timestamp}.md'
-    with open(filename, 'w', encoding='utf-8') as f:
+    # Сохраняем основной комментарий
+    main_filename = f'commentary/news_commentary_{timestamp}.md'
+    with open(main_filename, 'w', encoding='utf-8') as f:
         f.write(f"# Комментарий к новостям - {date_formatted}\n\n")
         f.write(f"{commentary}\n\n")
         f.write("---\n\n")
@@ -138,10 +188,25 @@ def save_commentary(commentary, news_items):
                 f.write(f"[Читать полностью]({item['link']})\n")
             f.write("\n")
     
-    print(f"Комментарий сохранен в {filename}")
+    # Сохраняем отдельный файл с полным диалогом
+    dialog_filename = f'commentary/full_dialog_{timestamp}.md'
+    with open(dialog_filename, 'w', encoding='utf-8') as f:
+        f.write(f"# Полный диалог с Gemini - {date_formatted}\n\n")
+        f.write("## 1. Инициализация с базой фактов\n\n")
+        f.write("**Ответ Gemini на инициализацию:**\n")
+        f.write(f"{initialization_response}\n\n")
+        f.write("---\n\n")
+        f.write("## 2. Запрос на анализ новостей\n\n")
+        f.write("**Отправленный промпт:**\n")
+        f.write(f"```\n{news_prompt}\n```\n\n")
+        f.write("**Ответ Gemini:**\n")
+        f.write(f"{commentary}\n\n")
+    
+    print(f"Комментарий сохранен в {main_filename}")
+    print(f"Полный диалог сохранен в {dialog_filename}")
 
 def main():
-    print("=== Запуск бота комментариев новостей ===")
+    print("=== Запуск бота комментариев новостей с базой фактов ===")
     print(f"Время: {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}")
     
     # Проверяем API ключ
@@ -149,6 +214,18 @@ def main():
     if not api_key:
         print("ОШИБКА: Не найден GEMINI_API_KEY в переменных окружения")
         return
+    
+    # Загружаем базу фактов
+    facts = load_facts()
+    
+    # Инициализируем Gemini с фактами
+    model, initialization_response = initialize_gemini_with_facts(facts)
+    if not model:
+        print("Не удалось инициализировать Gemini")
+        return
+    
+    # Небольшая пауза между запросами
+    time.sleep(3)
     
     print("Получаем новости...")
     news_items = get_news()
@@ -159,15 +236,16 @@ def main():
     
     print(f"Получено {len(news_items)} новостей")
     
-    # Добавляем задержку для соблюдения лимитов API
+    # Пауза перед вторым запросом
     time.sleep(2)
     
-    print("Генерируем комментарий...")
-    commentary = generate_commentary(news_items)
+    print("Генерируем анализ новостей...")
+    commentary, news_prompt = generate_commentary(model, news_items, facts)
     
     if commentary:
-        save_commentary(commentary, news_items)
-        print("✅ Комментарий успешно сгенерирован и сохранен!")
+        save_commentary(commentary, news_items, initialization_response, news_prompt)
+        print("✅ Анализ успешно сгенерирован и сохранен!")
+        print("✅ Создано два файла: основной комментарий и полный диалог")
     else:
         print("❌ Не удалось сгенерировать комментарий")
 
