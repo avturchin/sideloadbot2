@@ -430,4 +430,78 @@ def save_science_results(commentary, top_3_news, init_response, prompt):
         
         stats_filename = os.path.join(directory, f'science_stats_{timestamp}.txt')
         with open(stats_filename, 'w', encoding='utf-8') as f:
-            f.write(f"=== НАУЧ
+            f.write("=== НАУЧНЫЙ GEMINI 2.0 FLASH-LITE ТОП-3 ===\n")
+            f.write(f"Время: {date_formatted}\n")
+            f.write("Модель: Gemini 2.0 Flash-Lite (Science)\n")
+            f.write("Научных новостей: ТОП-3\n")
+            f.write(f"Длина анализа: {len(commentary)} символов\n")
+            f.write(f"ID: {timestamp}\n")
+            for i, item in enumerate(top_3_news, 1):
+                f.write(f"Новость {i}: {item['importance_score']} очков - {item['title'][:50]}...\n")
+        
+        print(f"✅ ТОП-3 анализ сохранён в: {main_filename}")
+        print(f"📊 Статистика: {stats_filename}")
+        
+        # Проверяем, что файлы реально созданы
+        if os.path.exists(main_filename) and os.path.exists(stats_filename):
+            print("✅ Файлы подтверждены в папке commentary6")
+            return True
+        else:
+            print("❌ Файлы не найдены после сохранения!")
+            return False
+        
+    except Exception as e:
+        print(f"❌ Ошибка сохранения в commentary6: {e}")
+        traceback.print_exc()
+        return False
+
+def main():
+    try:
+        print("🏆 === GEMINI 2.0 FLASH-LITE ТОП-3 НАУЧНЫЙ АНАЛИЗАТОР ===")
+        
+        api_key = os.getenv('GEMINI_API_KEY')
+        if not api_key:
+            print("❌ Нет API ключа")
+            return False
+        
+        genai.configure(api_key=api_key)
+        
+        # Загружаем факты БЕЗ обрезания
+        facts = load_facts()
+        if not facts:
+            print("❌ Нет фактов")
+            return False
+        
+        # Инициализация научного Flash-Lite
+        model, init_response = initialize_science_flash_lite(facts)
+        if not model:
+            print("❌ Научный Flash-Lite не инициализирован")
+            return False
+        
+        time.sleep(1)
+        
+        # Получаем ТОП-3 научные новости
+        top_3_news = get_top_science_news()
+        if not top_3_news:
+            print("❌ Нет научных новостей для ТОП-3")
+            return False
+        
+        time.sleep(1)
+        
+        # Научный анализ ТОП-3 Flash-Lite
+        commentary, prompt = generate_science_commentary(model, top_3_news)
+        if not commentary:
+            print("❌ Flash-Lite не создал анализ ТОП-3")
+            return False
+        
+        # Сохранение в папку commentary6
+        return save_science_results(commentary, top_3_news, init_response, prompt)
+        
+    except Exception as e:
+        print(f"❌ КРИТИЧЕСКАЯ ОШИБКА ТОП-3 FLASH-LITE: {e}")
+        traceback.print_exc()
+        return False
+
+if __name__ == "__main__":
+    success = main()
+    sys.exit(0 if success else 1)
