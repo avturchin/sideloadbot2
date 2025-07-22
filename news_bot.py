@@ -35,8 +35,12 @@ def load_facts():
         traceback.print_exc()
         return ""
 
+def estimate_tokens(text):
+    """Примерная оценка токенов (1 токен ≈ 3-4 символа для русского)"""
+    return len(text) // 3
+
 def extract_response_content(text):
-    """Извлекает содержимое между (RESPONSE) и (CONFIDENCE) - ИСПРАВЛЕННАЯ ВЕРСИЯ"""
+    """Извлекает содержимое между (RESPONSE) и (CONFIDENCE)"""
     try:
         print(f"🔍 Исходный текст ({len(text)} символов): {text[:200]}...")
         
@@ -48,11 +52,9 @@ def extract_response_content(text):
             print("⚠️ Маркер (RESPONSE) не найден")
             return text.strip()
         
-        # Начинаем ПОСЛЕ маркера (RESPONSE)
         start_index += len(start_marker)
         print(f"📍 Найден (RESPONSE) на позиции {start_index}")
         
-        # Ищем (CONFIDENCE) после (RESPONSE)
         end_index = text.find(end_marker, start_index)
         if end_index == -1:
             print("⚠️ Маркер (CONFIDENCE) не найден")
@@ -165,6 +167,20 @@ def rank_science_news(news_list):
     
     return sorted(news_list, key=lambda x: x['importance_score'], reverse=True)
 
+def limit_news_content(news):
+    """Ограничивает содержимое новости до 5000 токенов (~15000 символов)"""
+    max_chars = 15000  # ~5000 токенов
+    
+    # Ограничиваем только описание, заголовок оставляем полным
+    if len(news['description']) > max_chars:
+        news['description'] = news['description'][:max_chars] + "..."
+        print(f"✂️ Описание новости обрезано до {max_chars} символов")
+    
+    total_tokens = estimate_tokens(news['title'] + " " + news['description'])
+    print(f"🔢 Примерное количество токенов в новости: {total_tokens}")
+    
+    return news
+
 def get_top_science_news():
     """Получает научные новости и возвращает СЛУЧАЙНУЮ из ТОП-5"""
     print("🔬 Получаем научные новости...")
@@ -221,12 +237,17 @@ def get_top_science_news():
                         if is_science_news(title, description):
                             link = item.link.text.strip() if item.link else ""
                             
-                            all_science_news.append({
+                            news_item = {
                                 'title': title,
                                 'description': description,
                                 'source': source['name'],
                                 'link': link
-                            })
+                            }
+                            
+                            # Ограничиваем размер новости
+                            news_item = limit_news_content(news_item)
+                            
+                            all_science_news.append(news_item)
                             
                             print(f"🔬 {source['name']}: {title[:60]}...")
                         
@@ -243,13 +264,11 @@ def get_top_science_news():
     ranked_news = rank_science_news(all_science_news)
     
     if ranked_news:
-        # Берём ТОП-5 новостей
         top_5_news = ranked_news[:5]
         print(f"🏆 ТОП-5 новостей:")
         for i, news in enumerate(top_5_news, 1):
             print(f"   {i}. {news['title'][:60]}... (очки: {news['importance_score']})")
         
-        # Выбираем случайную из ТОП-5
         selected_news = random.choice(top_5_news)
         print(f"🎲 СЛУЧАЙНО ВЫБРАНА: {selected_news['title'][:80]}... (очки: {selected_news['importance_score']})")
         return selected_news
@@ -257,18 +276,17 @@ def get_top_science_news():
         print("❌ Научные новости не найдены")
         return None
 
-def initialize_gemini_2_0_flash(facts):
-    """Инициализирует ТОЛЬКО Gemini 2.0 Flash с полными facts БЕЗ fallback"""
+def initialize_gemini_2_0_flash_once(facts):
+    """Инициализирует Gemini 2.0 Flash ОДИН РАЗ с полными facts"""
     
     available_models = get_available_models()
     if not available_models:
         return None, "Нет доступных моделей"
     
-    # СТРОГО ТОЛЬКО Gemini 2.0 Flash
     target_models = [
-        'models/gemini-2.0-flash',              # ⚡ ОСНОВНОЙ 2.0 FLASH
-        'models/gemini-2.0-flash-thinking',     # ⚡ 2.0 FLASH thinking
-        'models/gemini-2.0-flash-exp',          # ⚡ 2.0 FLASH experimental
+        'models/gemini-2.0-flash',
+        'models/gemini-2.0-flash-thinking',
+        'models/gemini-2.0-flash-exp',
     ]
     
     selected_model = None
@@ -286,7 +304,7 @@ def initialize_gemini_2_0_flash(facts):
         return None, "Gemini 2.0 Flash недоступен"
     
     try:
-        # ПОЛНАЯ система инструкций с ВСЕМИ facts для 2.0 Flash
+        # ПОЛНАЯ система инструкций - загружается ТОЛЬКО ОДИН РАЗ
         system_instruction = f"""Ты - Alexey Turchin, всемирно известный российский трансгуманист, футуролог и исследователь проблем экзистенциального риска. Ты автор книг о бессмертии, глобальных рисках и карте бессмертия. 
 
 ПОЛНАЯ БАЗА ЗНАНИЙ:
@@ -300,125 +318,59 @@ def initialize_gemini_2_0_flash(facts):
 - Заканчивай (CONFIDENCE)
 - НЕ ДОБАВЛЯЙ ничего после (CONFIDENCE)
 
-СТИЛЬ: Интеллектуальный, с научной терминологией, упоминания трансгуманистических идей, связь с продлением жизни, прогнозы развития технологий, философские размышления.
+СТИЛЬ: Интеллектуальный, с научной терминологией, упоминания трансгуманистических идей, связь с продлением жизни, прогнозы развития технологий, философские размышления."""
 
-ПРИМЕР:
-(RESPONSE)
-Ваш глубокий экспертный комментарий новости с трансгуманистической и футурологической перспективой...
-(CONFIDENCE)
-
-Больше НИЧЕГО не пиши!"""
-
-        print(f"⚡ Создаем Gemini 2.0 Flash с ПОЛНЫМИ facts ({len(system_instruction)} символов)...")
+        system_tokens = estimate_tokens(system_instruction)
+        print(f"📊 Facts загружается ОДИН РАЗ: {len(facts)} символов (~{estimate_tokens(facts)} токенов)")
+        print(f"📊 System instruction: {len(system_instruction)} символов (~{system_tokens} токенов)")
         
         model = genai.GenerativeModel(
             model_name=selected_model,
             system_instruction=system_instruction
         )
         
-        # Самые мягкие настройки безопасности для 2.0 Flash
+        # Самые мягкие настройки безопасности
         safety_settings = [
-            {
-                "category": "HARM_CATEGORY_HARASSMENT",
-                "threshold": "BLOCK_NONE"
-            },
-            {
-                "category": "HARM_CATEGORY_HATE_SPEECH", 
-                "threshold": "BLOCK_NONE"
-            },
-            {
-                "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                "threshold": "BLOCK_NONE"
-            },
-            {
-                "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
-                "threshold": "BLOCK_NONE"
-            }
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}
         ]
         
-        # Настройки генерации для 2.0 Flash
         generation_config = genai.types.GenerationConfig(
             temperature=0.7,
             top_p=0.9,
-            max_output_tokens=1000,  # Уменьшено для избежания MAX_TOKENS
+            max_output_tokens=1000,
         )
         
-        print(f"🧪 Тестируем Gemini 2.0 Flash...")
+        print(f"🧪 Тестируем Gemini 2.0 Flash с Facts...")
         test_response = model.generate_content(
             "Готов анализировать научные новости как Alexey Turchin? Ответь кратко в указанном формате.",
             generation_config=generation_config,
             safety_settings=safety_settings
         )
         
-        # Детальная обработка ответа для 2.0 Flash
-        if test_response:
-            print(f"🔍 Test response type: {type(test_response)}")
+        if test_response and test_response.candidates:
+            candidate = test_response.candidates[0]
+            print(f"🔍 Finish reason: {candidate.finish_reason}")
             
-            # Проверяем candidates
-            if hasattr(test_response, 'candidates') and test_response.candidates:
-                candidate = test_response.candidates[0]
-                print(f"🔍 Finish reason: {candidate.finish_reason}")
-                print(f"🔍 Safety ratings: {candidate.safety_ratings}")
-                
-                if candidate.finish_reason == 1:  # STOP - успешное завершение
-                    if candidate.content and candidate.content.parts:
-                        text = candidate.content.parts[0].text
-                        extracted_response = extract_response_content(text)
-                        print(f"✅ Gemini 2.0 Flash готов (через candidates): {extracted_response}")
-                        return model, extracted_response
-                    else:
-                        print(f"❌ Gemini 2.0 Flash: нет текста в candidate")
-                        return None, "Нет текста в ответе"
-                        
-                elif candidate.finish_reason == 2:  # MAX_TOKENS
-                    print(f"⚠️ Gemini 2.0 Flash: достигнут лимит токенов")
-                    if candidate.content and candidate.content.parts:
-                        text = candidate.content.parts[0].text
-                        print(f"📄 Получен частичный ответ: {text[:100]}...")
-                        extracted_response = extract_response_content(text)
-                        print(f"✅ Gemini 2.0 Flash работает с ограничениями: {extracted_response}")
-                        return model, extracted_response
-                        
-                elif candidate.finish_reason == 3:  # SAFETY
-                    print(f"🛡️ Gemini 2.0 Flash: заблокировано safety")
-                    
-                    # Попробуем БЕЗ facts в system instruction
-                    print(f"🔄 Пробуем Gemini 2.0 Flash БЕЗ facts...")
-                    simple_system = "Ты - Alexey Turchin, трансгуманист и футуролог. Анализируй научные новости. Формат: (RESPONSE) комментарий (CONFIDENCE)"
-                    
-                    simple_model = genai.GenerativeModel(
-                        model_name=selected_model,
-                        system_instruction=simple_system
-                    )
-                    
-                    simple_response = simple_model.generate_content(
-                        "Готов анализировать науку как Alexey Turchin?",
-                        generation_config=generation_config,
-                        safety_settings=safety_settings
-                    )
-                    
-                    if simple_response and simple_response.candidates:
-                        simple_candidate = simple_response.candidates[0]
-                        print(f"🔍 Simple finish reason: {simple_candidate.finish_reason}")
-                        
-                        if simple_candidate.finish_reason == 1:
-                            if simple_candidate.content and simple_candidate.content.parts:
-                                text = simple_candidate.content.parts[0].text
-                                extracted_response = extract_response_content(text)
-                                print(f"✅ Gemini 2.0 Flash БЕЗ facts работает: {extracted_response}")
-                                return simple_model, extracted_response
-                    
-                    return None, "Safety блокировка даже без facts"
-                    
+            if candidate.finish_reason in [1, 2]:  # STOP или MAX_TOKENS
+                if candidate.content and candidate.content.parts:
+                    text = candidate.content.parts[0].text
+                    extracted_response = extract_response_content(text)
+                    print(f"✅ Gemini 2.0 Flash с Facts готов: {extracted_response}")
+                    return model, extracted_response
                 else:
-                    print(f"❌ Gemini 2.0 Flash: неизвестная причина {candidate.finish_reason}")
-                    return None, f"Finish reason: {candidate.finish_reason}"
+                    print(f"❌ Нет текста в candidate")
+                    return None, "Нет текста в ответе"
             else:
-                print(f"❌ Gemini 2.0 Flash: нет candidates")
-                return None, "Нет candidates в ответе"
+                print(f"❌ Проблема: finish_reason = {candidate.finish_reason}")
+                if hasattr(candidate, 'safety_ratings'):
+                    print(f"🔍 Safety ratings: {candidate.safety_ratings}")
+                return None, f"Finish reason: {candidate.finish_reason}"
         else:
-            print(f"❌ Gemini 2.0 Flash: пустой test_response")
-            return None, "Пустой ответ"
+            print(f"❌ Нет candidates")
+            return None, "Нет candidates в ответе"
             
     except Exception as e:
         print(f"❌ Ошибка Gemini 2.0 Flash: {e}")
@@ -426,12 +378,13 @@ def initialize_gemini_2_0_flash(facts):
         return None, f"Ошибка: {e}"
 
 def generate_science_commentary(model, selected_news):
-    """Генерирует научный комментарий для выбранной новости"""
+    """Генерирует научный комментарий БЕЗ повторной загрузки facts"""
     if not model or not selected_news:
         return None, None
     
     print("⚡ Gemini 2.0 Flash анализирует научную новость...")
     
+    # КРАТКИЙ промпт - БЕЗ facts, только новость
     analysis_prompt = f"""Прокомментируй эту научную новость как трансгуманист и футуролог Alexey Turchin:
 
 ЗАГОЛОВОК: {selected_news['title']}
@@ -441,42 +394,34 @@ def generate_science_commentary(model, selected_news):
 ИСТОЧНИК: {selected_news['source']}
 
 Дай краткий экспертный анализ через призму трансгуманизма:
-- Влияние на продление жизни человека
+- Как это открытие повлияет на продление жизни человека?
+- Какие возможности это открывает для улучшения человека?
 - Связь с трансгуманистическими трендами
-- Значимость для будущего
+- Значимость для будущего человечества
 
 ВАЖНО: Строго соблюдай формат!
 (RESPONSE)
 [краткий экспертный комментарий как Alexey Turchin]
 (CONFIDENCE)"""
     
+    prompt_tokens = estimate_tokens(analysis_prompt)
+    print(f"🔢 Промпт для комментария: ~{prompt_tokens} токенов")
+    
     try:
         generation_config = genai.types.GenerationConfig(
             temperature=0.8,
             top_p=0.95,
-            max_output_tokens=800,  # Ограничено для избежания MAX_TOKENS
+            max_output_tokens=800,
         )
         
         safety_settings = [
-            {
-                "category": "HARM_CATEGORY_HARASSMENT",
-                "threshold": "BLOCK_NONE"
-            },
-            {
-                "category": "HARM_CATEGORY_HATE_SPEECH",
-                "threshold": "BLOCK_NONE"
-            },
-            {
-                "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", 
-                "threshold": "BLOCK_NONE"
-            },
-            {
-                "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
-                "threshold": "BLOCK_NONE"
-            }
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}
         ]
         
-        print(f"⚡ Gemini 2.0 Flash генерирует комментарий ({len(analysis_prompt)} символов)...")
+        print(f"⚡ Gemini 2.0 Flash генерирует комментарий...")
         
         response = model.generate_content(
             analysis_prompt,
@@ -493,34 +438,26 @@ def generate_science_commentary(model, selected_news):
                     text = candidate.content.parts[0].text
                     print(f"📄 RAW ответ Gemini 2.0 Flash ({len(text)} символов)")
                     extracted_commentary = extract_response_content(text)
-                    print(f"✅ Комментарий 2.0 Flash обрезан до ({len(extracted_commentary)} символов)")
+                    print(f"✅ Комментарий готов ({len(extracted_commentary)} символов)")
                     return extracted_commentary, analysis_prompt
                 else:
-                    return "Gemini 2.0 Flash: нет текста", analysis_prompt
+                    return "Нет текста в ответе", analysis_prompt
             else:
                 print(f"❌ Finish reason: {candidate.finish_reason}")
-                if hasattr(candidate, 'safety_ratings'):
-                    print(f"🔍 Safety ratings: {candidate.safety_ratings}")
-                return f"Gemini 2.0 Flash: проблема {candidate.finish_reason}", analysis_prompt
+                return f"Проблема {candidate.finish_reason}", analysis_prompt
         else:
-            return "Gemini 2.0 Flash: нет candidates", analysis_prompt
+            return "Нет candidates", analysis_prompt
             
     except Exception as e:
-        print(f"❌ Ошибка комментария Gemini 2.0 Flash: {e}")
+        print(f"❌ Ошибка комментария: {e}")
         traceback.print_exc()
-        return f"Gemini 2.0 Flash ошибка: {e}", analysis_prompt
+        return f"Ошибка: {e}", analysis_prompt
 
 def clean_text_for_telegram(text):
     """Очищает текст от проблематичных символов для Telegram"""
     replacements = {
-        '*': '•',
-        '_': '-',
-        '`': "'",
-        '[': '(',
-        ']': ')',
-        '~': '-',
-        '#': '№',
-        '|': '/',
+        '*': '•', '_': '-', '`': "'", '[': '(', ']': ')',
+        '~': '-', '#': '№', '|': '/',
     }
     
     cleaned_text = text
@@ -568,10 +505,9 @@ def send_to_telegram_group(bot_token, group_id, text):
                     return False
             else:
                 print(f"❌ HTTP ошибка {response.status_code}")
-                print(f"📄 Ответ: {response.text}")
                 return False
-        
         else:
+            # Разбиваем на части если слишком длинное
             parts = []
             current_part = ""
             
@@ -712,8 +648,6 @@ def main():
         # Проверяем API ключи
         gemini_api_key = os.getenv('GEMINI_API_KEY')
         telegram_bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
-        
-        # Используем фиксированный Chat ID группы
         telegram_group_id = "-1002894291419"
         
         if not gemini_api_key:
@@ -731,36 +665,40 @@ def main():
         
         genai.configure(api_key=gemini_api_key)
         
+        # 1. ЗАГРУЖАЕМ Facts.txt ОДИН РАЗ
         facts = load_facts()
         if not facts:
             print("❌ Нет фактов")
             return False
         
-        model, init_response = initialize_gemini_2_0_flash(facts)
+        # 2. ИНИЦИАЛИЗИРУЕМ модель ОДИН РАЗ с Facts
+        model, init_response = initialize_gemini_2_0_flash_once(facts)
         if not model:
             print("❌ Gemini 2.0 Flash не инициализирован")
             return False
         
-        time.sleep(1)
+        print("⏱️ Ждем 10 секунд перед следующим запросом...")
+        time.sleep(10)
         
+        # 3. ПОЛУЧАЕМ новость (с ограничением размера)
         selected_news = get_top_science_news()
         if not selected_news:
             print("❌ Нет научных новостей")
             return False
         
-        time.sleep(1)
-        
+        # 4. ГЕНЕРИРУЕМ комментарий БЕЗ повторной загрузки Facts
         commentary, prompt = generate_science_commentary(model, selected_news)
         if not commentary:
             print("❌ Gemini 2.0 Flash не создал комментарий")
             return False
         
+        # 5. СОХРАНЯЕМ результаты
         save_success = save_science_results(commentary, selected_news, init_response, prompt)
         if not save_success:
             print("⚠️ Ошибка сохранения, но продолжаем...")
         
+        # 6. ОТПРАВЛЯЕМ в Telegram
         telegram_text = format_for_telegram_group(commentary, selected_news)
-        
         telegram_success = send_to_telegram_group(telegram_bot_token, telegram_group_id, telegram_text)
         
         if telegram_success:
