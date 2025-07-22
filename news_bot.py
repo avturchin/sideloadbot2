@@ -7,19 +7,6 @@ import time
 import traceback
 import sys
 
-def ensure_directory_exists(directory):
-    """Создает папку если её нет"""
-    try:
-        if not os.path.exists(directory):
-            os.makedirs(directory, exist_ok=True)
-            print(f"✅ Папка {directory} создана")
-        else:
-            print(f"📁 Папка {directory} уже существует")
-        return True
-    except Exception as e:
-        print(f"❌ Ошибка создания папки {directory}: {e}")
-        return False
-
 def load_facts():
     """Загружает Facts.txt БЕЗ обрезания"""
     try:
@@ -399,14 +386,141 @@ def generate_science_commentary(model, top_3_news):
         print(f"❌ Ошибка анализа ТОП-3 Flash-Lite: {e}")
         return f"Научный Flash-Lite ошибка: {e}", analysis_prompt
 
-def save_science_results(commentary, top_3_news, init_response, prompt):
-    """Сохраняет результаты анализа ТОП-3 научных новостей в папку commentary"""
-    directory = 'commentary'
-    
-    # Создаем папку если её нет
-    if not ensure_directory_exists(directory):
-        print(f"❌ Не удалось создать папку {directory}")
+def send_to_telegram(bot_token, channel_id, text):
+    """Отправляет сообщение в Telegram канал"""
+    try:
+        print(f"📱 Отправляем в Telegram канал {channel_id}...")
+        
+        # Telegram Bot API URL
+        url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+        
+        # Разбиваем длинный текст на части (максимум 4096 символов)
+        max_length = 4096
+        
+        if len(text) <= max_length:
+            # Отправляем как одно сообщение
+            payload = {
+                'chat_id': channel_id,
+                'text': text,
+                'parse_mode': 'Markdown',
+                'disable_web_page_preview': True
+            }
+            
+            response = requests.post(url, json=payload, timeout=30)
+            
+            if response.status_code == 200:
+                result = response.json()
+                if result['ok']:
+                    print(f"✅ Сообщение отправлено в Telegram!")
+                    return True
+                else:
+                    print(f"❌ Telegram API ошибка: {result}")
+                    return False
+            else:
+                print(f"❌ HTTP ошибка {response.status_code}: {response.text}")
+                return False
+        
+        else:
+            # Разбиваем на части
+            parts = []
+            current_part = ""
+            
+            for line in text.split('\n'):
+                if len(current_part) + len(line) + 1 <= max_length:
+                    current_part += line + '\n'
+                else:
+                    if current_part:
+                        parts.append(current_part.strip())
+                    current_part = line + '\n'
+            
+            if current_part:
+                parts.append(current_part.strip())
+            
+            print(f"📤 Отправляем {len(parts)} частей...")
+            
+            # Отправляем каждую часть
+            for i, part in enumerate(parts, 1):
+                payload = {
+                    'chat_id': channel_id,
+                    'text': f"**Часть {i}/{len(parts)}**\n\n{part}",
+                    'parse_mode': 'Markdown',
+                    'disable_web_page_preview': True
+                }
+                
+                response = requests.post(url, json=payload, timeout=30)
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    if result['ok']:
+                        print(f"✅ Часть {i}/{len(parts)} отправлена")
+                        time.sleep(1)  # Задержка между сообщениями
+                    else:
+                        print(f"❌ Ошибка части {i}: {result}")
+                        return False
+                else:
+                    print(f"❌ HTTP ошибка части {i}: {response.status_code}")
+                    return False
+            
+            print(f"✅ Все {len(parts)} частей отправлены!")
+            return True
+            
+    except Exception as e:
+        print(f"❌ Ошибка отправки в Telegram: {e}")
+        traceback.print_exc()
         return False
+
+def format_for_telegram(commentary, top_3_news):
+    """Форматирует анализ для Telegram"""
+    now = datetime.now()
+    date_formatted = now.strftime("%d.%m.%Y %H:%M")
+    
+    # Заголовок
+    telegram_text = f"🔬 **ТОП-3 Научные Открытия**\n"
+    telegram_text += f"📅 {date_formatted}\n"
+    telegram_text += f"🤖 Анализ от Gemini 2.0 Flash-Lite\n\n"
+    telegram_text += "═══════════════════════\n\n"
+    
+    # Анализ от ИИ
+    telegram_text += f"**📊 ЭКСПЕРТНЫЙ АНАЛИЗ:**\n\n"
+    telegram_text += f"{commentary}\n\n"
+    telegram_text += "═══════════════════════\n\n"
+    
+    # ТОП-3 новости
+    telegram_text += f"**🏆 ТОП-3 НАУЧНЫЕ НОВОСТИ:**\n\n"
+    
+    for i, item in enumerate(top_3_news, 1):
+        medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉"
+        telegram_text += f"**{medal} {i}. {item['title']}**\n"
+        telegram_text += f"⭐ Важность: {item['importance_score']} очков\n\n"
+        
+        if item['description']:
+            # Ограничиваем описание
+            desc = item['description']
+            if len(desc) > 300:
+                desc = desc[:300] + "..."
+            telegram_text += f"{desc}\n\n"
+        
+        telegram_text += f"📰 Источник: {item['source']}\n"
+        
+        if item['link']:
+            telegram_text += f"🔗 [Читать полностью]({item['link']})\n"
+        
+        telegram_text += "\n───────────────────────\n\n"
+    
+    # Подпись
+    telegram_text += "🤖 Автоматический анализ научных новостей\n"
+    telegram_text += "⚡ Powered by Gemini 2.0 Flash-Lite"
+    
+    return telegram_text
+
+def save_science_results(commentary, top_3_news, init_response, prompt):
+    """Сохраняет результаты анализа ТОП-3 научных новостей в папку commentary6"""
+    directory = 'commentary6'
+    
+    # Проверяем существование папки
+    if not os.path.exists(directory):
+        os.makedirs(directory, exist_ok=True)
+        print(f"✅ Папка {directory} создана")
     
     now = datetime.now()
     timestamp = now.strftime("%Y-%m-%d_%H-%M-%S") + f"-{now.microsecond}"
@@ -451,29 +565,38 @@ def save_science_results(commentary, top_3_news, init_response, prompt):
         print(f"✅ ТОП-3 анализ сохранён в: {main_filename}")
         print(f"📊 Статистика: {stats_filename}")
         
-        # Проверяем, что файлы реально созданы
-        if os.path.exists(main_filename) and os.path.exists(stats_filename):
-            print("✅ Файлы подтверждены в папке commentary")
-            return True
-        else:
-            print("❌ Файлы не найдены после сохранения!")
-            return False
+        return True
         
     except Exception as e:
-        print(f"❌ Ошибка сохранения в commentary: {e}")
+        print(f"❌ Ошибка сохранения в commentary6: {e}")
         traceback.print_exc()
         return False
 
 def main():
     try:
-        print("🏆 === GEMINI 2.0 FLASH-LITE ТОП-3 НАУЧНЫЙ АНАЛИЗАТОР ===")
+        print("🏆 === GEMINI 2.0 FLASH-LITE ТОП-3 НАУЧНЫЙ АНАЛИЗАТОР + TELEGRAM ===")
         
-        api_key = os.getenv('GEMINI_API_KEY')
-        if not api_key:
-            print("❌ Нет API ключа")
+        # Проверяем API ключи
+        gemini_api_key = os.getenv('GEMINI_API_KEY')
+        telegram_bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
+        telegram_channel_id = os.getenv('TELEGRAM_CHANNEL_ID')
+        
+        if not gemini_api_key:
+            print("❌ Нет GEMINI_API_KEY")
+            return False
+            
+        if not telegram_bot_token:
+            print("❌ Нет TELEGRAM_BOT_TOKEN")
+            return False
+            
+        if not telegram_channel_id:
+            print("❌ Нет TELEGRAM_CHANNEL_ID")
             return False
         
-        genai.configure(api_key=api_key)
+        print(f"✅ Telegram Bot Token: {telegram_bot_token[:10]}...")
+        print(f"✅ Channel ID: {telegram_channel_id}")
+        
+        genai.configure(api_key=gemini_api_key)
         
         # Загружаем факты БЕЗ обрезания
         facts = load_facts()
@@ -504,10 +627,25 @@ def main():
             return False
         
         # Сохранение в папку commentary6
-        return save_science_results(commentary, top_3_news, init_response, prompt)
+        save_success = save_science_results(commentary, top_3_news, init_response, prompt)
+        if not save_success:
+            print("⚠️ Ошибка сохранения, но продолжаем...")
+        
+        # Форматируем для Telegram
+        telegram_text = format_for_telegram(commentary, top_3_news)
+        
+        # Отправляем в Telegram
+        telegram_success = send_to_telegram(telegram_bot_token, telegram_channel_id, telegram_text)
+        
+        if telegram_success:
+            print("🎉 УСПЕХ! Анализ опубликован в Telegram!")
+            return True
+        else:
+            print("❌ Ошибка публикации в Telegram")
+            return False
         
     except Exception as e:
-        print(f"❌ КРИТИЧЕСКАЯ ОШИБКА ТОП-3 FLASH-LITE: {e}")
+        print(f"❌ КРИТИЧЕСКАЯ ОШИБКА ТОП-3 FLASH-LITE + TELEGRAM: {e}")
         traceback.print_exc()
         return False
 
