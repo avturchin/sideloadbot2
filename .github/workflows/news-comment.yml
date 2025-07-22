@@ -1,95 +1,40 @@
-name: News Commentary Bot (Gemini 2.5 Pro)
+name: Science News Bot
 
 on:
   schedule:
-    - cron: '0 * * * *'
-  workflow_dispatch:
+    - cron: '0 */6 * * *'  # Каждые 6 часов
+  workflow_dispatch:  # Ручной запуск
 
 jobs:
-  comment-news:
+  run-bot:
     runs-on: ubuntu-latest
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0  # Получаем всю историю
-        clean: true     # Принудительная очистка
     
-    - name: Force refresh Facts.txt
-      run: |
-        echo "=== Принудительное обновление Facts.txt ==="
-        echo "Текущий коммит: $(git rev-parse HEAD)"
-        echo "Файлы в репозитории:"
-        ls -la *.txt || echo "Нет .txt файлов"
-        
-        if [ -f "Facts.txt" ]; then
-          echo "✅ Facts.txt найден"
-          echo "Размер: $(wc -c < Facts.txt) байт"
-          echo "Последнее изменение: $(stat -c %y Facts.txt)"
-          echo "Первые 200 символов:"
-          head -c 200 Facts.txt
-          echo -e "\n---"
-          echo "Последние 200 символов:"
-          tail -c 200 Facts.txt
-        else
-          echo "❌ Facts.txt НЕ найден в текущем коммите"
-          echo "Все файлы:"
-          find . -name "*.txt" -type f
-        fi
-        
-        # Принудительно перечитываем файл
-        git checkout HEAD -- Facts.txt 2>/dev/null || echo "Не удалось обновить Facts.txt"
+    steps:
+    - uses: actions/checkout@v3
     
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.9'
-        
+    
     - name: Install dependencies
       run: |
-        echo "=== Установка зависимостей ==="
         pip install google-generativeai requests beautifulsoup4 lxml
-        
-    - name: Run news commentary
-      id: run_bot
+    
+    - name: Check Facts.txt
+      run: |
+        echo "📊 Финальная проверка Facts.txt:"
+        echo "Размер: $(wc -c < Facts.txt) байт"
+        md5sum Facts.txt
+    
+    - name: Run Science News Bot
       env:
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
       run: |
         echo "=== Запуск основного скрипта ==="
-        
-        # Еще раз проверяем Facts.txt перед запуском
-        if [ -f "Facts.txt" ]; then
-          echo "📊 Финальная проверка Facts.txt:"
-          echo "Размер: $(wc -c < Facts.txt) байт"
-          echo "MD5: $(md5sum Facts.txt)"
-        fi
-        
+        echo "📊 Финальная проверка Facts.txt:"
+        echo "Размер: $(wc -c < Facts.txt) байт"
+        md5sum Facts.txt
         python news_bot.py
-        
-        echo "=== Проверка результатов ==="
-        if [ -d "commentary" ] && [ "$(ls -A commentary 2>/dev/null)" ]; then
-          echo "success=true" >> $GITHUB_OUTPUT
-          echo "✅ Файлы созданы в commentary/"
-          ls -la commentary/
-        else
-          echo "success=false" >> $GITHUB_OUTPUT
-          echo "❌ Нет файлов в commentary/"
-        fi
-      
-    - name: Commit and push results
-      if: steps.run_bot.outputs.success == 'true'
-      run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        
-        git add commentary/
-        
-        if ! git diff --staged --quiet; then
-          git commit -m "Анализ новостей $(date '+%d.%m.%Y %H:%M')"
-          git push origin main
-          echo "✅ Результаты закоммичены"
-        else
-          echo "ℹ️ Нет изменений для коммита"
-        fi
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
