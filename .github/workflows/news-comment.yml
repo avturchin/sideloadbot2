@@ -2,7 +2,7 @@ name: Science News Bot
 
 on:
   schedule:
-    - cron: '0 */6 * * *'  # Каждые 6 часов
+    - cron: '0 * * * *'  # Каждый час
   workflow_dispatch:  # Ручной запуск
 
 jobs:
