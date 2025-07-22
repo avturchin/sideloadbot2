@@ -171,8 +171,8 @@ def rank_science_news(news_list):
     return sorted(news_list, key=lambda x: x['importance_score'], reverse=True)
 
 def get_top_science_news():
-    """Получает ТОП-3 научные новости"""
-    print("🔬 Получаем ТОП-3 научные новости...")
+    """Получает ТОП научные новости и возвращает самую важную"""
+    print("🔬 Получаем научные новости...")
     all_science_news = []
     
     sources = [
@@ -249,14 +249,14 @@ def get_top_science_news():
     # Ранжируем по важности
     ranked_news = rank_science_news(all_science_news)
     
-    # Берём ТОП-3
-    top_3_news = ranked_news[:3]
-    
-    print(f"🏆 ТОП-3 научные новости:")
-    for i, news in enumerate(top_3_news, 1):
-        print(f"   {i}. {news['title'][:80]}... (очки: {news['importance_score']})")
-    
-    return top_3_news
+    # Берём самую важную новость (ТОП-1)
+    if ranked_news:
+        top_news = ranked_news[0]
+        print(f"🏆 Выбрана ТОП новость: {top_news['title'][:80]}... (очки: {top_news['importance_score']})")
+        return top_news
+    else:
+        print("❌ Научные новости не найдены")
+        return None
 
 def initialize_science_flash_lite(facts):
     """Инициализирует Gemini 2.0 Flash-Lite для анализа науки"""
@@ -289,17 +289,17 @@ def initialize_science_flash_lite(facts):
     
     try:
         # Системные инструкции для научного анализа
-        system_instruction = f"""Ты специализированный аналитик НАУЧНЫХ новостей. База знаний:
+        system_instruction = f"""Ты - Alexey Turchin, эксперт по научным открытиям и технологиям. База знаний:
 
 {facts}
 
-Анализируй ТОЛЬКО научные открытия, исследования, технологии и инновации. 
-Фокусируйся на: медицине, биологии, физике, химии, космосе, ИИ, робототехнике, экологии.
-Игнорируй политику, экономику, спорт.
+Анализируй научные открытия, исследования и технологии. Пиши экспертные комментарии как специалист.
 
-Пиши профессионально, но доступно.
-
-ВАЖНО: Всегда начинай ответ с (RESPONSE) и заканчивай (CONFIDENCE)."""
+ВАЖНО: 
+- Всегда начинай ответ с (RESPONSE) 
+- Заканчивай (CONFIDENCE)
+- Пиши от лица эксперта
+- Комментируй только одну новость за раз"""
 
         print(f"🔬 Создаем научный Flash-Lite ({len(system_instruction)} символов)...")
         
@@ -312,12 +312,12 @@ def initialize_science_flash_lite(facts):
         generation_config = genai.types.GenerationConfig(
             temperature=0.7,
             top_p=0.9,
-            max_output_tokens=200,
+            max_output_tokens=300,
         )
         
         print("🔬 Тестируем научный Flash-Lite...")
         test_response = model.generate_content(
-            "Готов анализировать научные новости?",
+            "Готов анализировать научные новости как эксперт?",
             generation_config=generation_config
         )
         
@@ -336,7 +336,7 @@ def initialize_science_flash_lite(facts):
         # Fallback
         try:
             print("🔬 Научный Flash-Lite fallback...")
-            simple_system = "Ты аналитик научных новостей. Анализируй открытия, исследования, технологии. Всегда начинай ответ с (RESPONSE) и заканчивай (CONFIDENCE)."
+            simple_system = "Ты - Alexey Turchin, эксперт по науке. Комментируй научные открытия. Всегда начинай с (RESPONSE) и заканчивай (CONFIDENCE)."
             
             model = genai.GenerativeModel(
                 model_name=selected_model,
@@ -358,56 +358,35 @@ def initialize_science_flash_lite(facts):
         
         return None, str(e)
 
-def generate_science_commentary(model, top_3_news):
-    """Генерирует научный анализ ТОП-3 новостей через Flash-Lite"""
-    if not model or not top_3_news:
+def generate_science_commentary(model, top_news):
+    """Генерирует научный комментарий для одной новости"""
+    if not model or not top_news:
         return None, None
     
-    print("🔬 Flash-Lite анализирует ТОП-3 научные новости...")
+    print("🔬 Flash-Lite анализирует научную новость...")
     
-    # Формируем список ТОП-3 научных новостей
-    news_text = "🏆 ТОП-3 НАУЧНЫЕ НОВОСТИ:\n\n"
-    for i, item in enumerate(top_3_news, 1):
-        news_text += f"🥇 {i}. {item['title']}\n"
-        if item['description']:
-            news_text += f"📋 {item['description']}\n"
-        news_text += f"📰 Источник: {item['source']}\n"
-        news_text += f"🎯 Важность: {item['importance_score']} очков\n\n"
-    
-    # Специализированный научный промпт для ТОП-3
-    analysis_prompt = f"""{news_text}
+    # Простой промпт для одной новости
+    analysis_prompt = f"""Прокомментируй эту научную новость как эксперт:
 
-Проанализируй эти ТОП-3 научные открытия и дай экспертный анализ:
+ЗАГОЛОВОК: {top_news['title']}
 
-🔬 КЛЮЧЕВЫЕ ОТКРЫТИЯ:
-- Что самое важное в каждом открытии?
-- Какие прорывы произошли?
+ОПИСАНИЕ: {top_news['description']}
 
-🚀 НАУЧНАЯ ЗНАЧИМОСТЬ:
-- Почему эти открытия важны для науки?
-- Какие области знаний затронуты?
+ИСТОЧНИК: {top_news['source']}
 
-🧬 ПРАКТИЧЕСКОЕ ПРИМЕНЕНИЕ:
-- Как это поможет людям?
-- Когда можно ждать внедрения?
+Напиши экспертный комментарий этой новости. Объясни её значимость, возможные последствия и твою оценку как специалиста.
 
-🌍 ВЛИЯНИЕ НА БУДУЩЕЕ:
-- Как эти открытия изменят мир?
-- Какие новые возможности открываются?
-
-Пиши научно, но понятно. Фокусируйся на значимости открытий.
-
-Обязательно начни ответ с (RESPONSE) и закончи (CONFIDENCE)."""
+Обязательно начни с (RESPONSE) и закончи (CONFIDENCE)."""
     
     try:
         # Настройки для научного анализа
         generation_config = genai.types.GenerationConfig(
             temperature=0.8,
             top_p=0.9,
-            max_output_tokens=2000,  # Достаточно для анализа 3 новостей
+            max_output_tokens=1000,
         )
         
-        print(f"🔬 Flash-Lite генерирует анализ ТОП-3 ({len(analysis_prompt)} символов)...")
+        print(f"🔬 Flash-Lite генерирует комментарий ({len(analysis_prompt)} символов)...")
         
         response = model.generate_content(
             analysis_prompt,
@@ -417,13 +396,14 @@ def generate_science_commentary(model, top_3_news):
         if response and response.text:
             # Извлекаем содержимое между маркерами
             extracted_commentary = extract_response_content(response.text)
-            print(f"✅ Анализ ТОП-3 готов ({len(extracted_commentary)} символов)")
+            print(f"✅ Комментарий готов ({len(extracted_commentary)} символов)")
+            print(f"🔍 Предварительный просмотр: {extracted_commentary[:100]}...")
             return extracted_commentary, analysis_prompt
         else:
-            return "Flash-Lite: ошибка генерации анализа ТОП-3", analysis_prompt
+            return "Flash-Lite: ошибка генерации комментария", analysis_prompt
             
     except Exception as e:
-        print(f"❌ Ошибка анализа ТОП-3 Flash-Lite: {e}")
+        print(f"❌ Ошибка комментария Flash-Lite: {e}")
         return f"Научный Flash-Lite ошибка: {e}", analysis_prompt
 
 def clean_text_for_telegram(text):
@@ -544,52 +524,42 @@ def send_to_telegram(bot_token, channel_id, text):
         traceback.print_exc()
         return False
 
-def format_for_telegram(commentary, top_3_news):
-    """Форматирует анализ для Telegram (простой текст без Markdown)"""
+def format_for_telegram(commentary, top_news):
+    """Форматирует комментарий для Telegram"""
     now = datetime.now()
     date_formatted = now.strftime("%d.%m.%Y %H:%M")
     
-    # Заголовок
-    telegram_text = f"🔬 ТОП-3 Научные Открытия\n"
-    telegram_text += f"📅 {date_formatted}\n"
-    telegram_text += f"🤖 Анализ от Gemini 2.0 Flash-Lite\n\n"
-    telegram_text += "═════════════════════\n\n"
+    # Заголовок с новым форматом
+    telegram_text = f"💬 Комментарии от сайдлоада Alexey Turchin\n"
+    telegram_text += f"📅 {date_formatted}\n\n"
+    telegram_text += "═══════════════════\n\n"
     
-    # Анализ от ИИ
-    telegram_text += f"📊 ЭКСПЕРТНЫЙ АНАЛИЗ:\n\n"
+    # Комментарий от Alexey Turchin
     telegram_text += f"{commentary}\n\n"
-    telegram_text += "═════════════════════\n\n"
+    telegram_text += "═══════════════════\n\n"
     
-    # ТОП-3 новости
-    telegram_text += f"🏆 ТОП-3 НАУЧНЫЕ НОВОСТИ:\n\n"
+    # Исходная новость
+    telegram_text += f"📰 ИСХОДНАЯ НОВОСТЬ:\n\n"
+    telegram_text += f"🔬 {top_news['title']}\n\n"
     
-    for i, item in enumerate(top_3_news, 1):
-        medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉"
-        telegram_text += f"{medal} {i}. {item['title']}\n"
-        telegram_text += f"⭐ Важность: {item['importance_score']} очков\n\n"
-        
-        if item['description']:
-            # Ограничиваем описание
-            desc = item['description']
-            if len(desc) > 300:
-                desc = desc[:300] + "..."
-            telegram_text += f"{desc}\n\n"
-        
-        telegram_text += f"📰 Источник: {item['source']}\n"
-        
-        if item['link']:
-            telegram_text += f"🔗 Ссылка: {item['link']}\n"
-        
-        telegram_text += "\n───────────────────\n\n"
+    if top_news['description']:
+        # Ограничиваем описание
+        desc = top_news['description']
+        if len(desc) > 400:
+            desc = desc[:400] + "..."
+        telegram_text += f"{desc}\n\n"
     
-    # Подпись
-    telegram_text += "🤖 Автоматический анализ научных новостей\n"
-    telegram_text += "⚡ Powered by Gemini 2.0 Flash-Lite"
+    telegram_text += f"📰 Источник: {top_news['source']}\n"
+    
+    if top_news['link']:
+        telegram_text += f"🔗 Ссылка: {top_news['link']}\n"
+    
+    telegram_text += f"\n⭐ Важность: {top_news['importance_score']} очков"
     
     return telegram_text
 
-def save_science_results(commentary, top_3_news, init_response, prompt):
-    """Сохраняет результаты анализа ТОП-3 научных новостей в папку commentary"""
+def save_science_results(commentary, top_news, init_response, prompt):
+    """Сохраняет результаты анализа научной новости в папку commentary"""
     directory = 'commentary'  # Используем существующую папку
     
     # Проверяем существование папки
@@ -604,42 +574,38 @@ def save_science_results(commentary, top_3_news, init_response, prompt):
     date_formatted = now.strftime("%d.%m.%Y %H:%M:%S")
     
     try:
-        main_filename = os.path.join(directory, f'science_top3_{timestamp}.md')
+        main_filename = os.path.join(directory, f'science_turchin_{timestamp}.md')
         
-        print(f"💾 Сохраняем научный анализ: {main_filename}")
+        print(f"💾 Сохраняем научный комментарий: {main_filename}")
         
         with open(main_filename, 'w', encoding='utf-8') as f:
-            f.write(f"# 🏆 ТОП-3 Научные Новости - Gemini 2.0 Flash-Lite\n")
+            f.write(f"# 💬 Комментарии от Alexey Turchin\n")
             f.write(f"## {date_formatted}\n\n")
-            f.write(f"*Анализ топ-3 научных открытий от Gemini 2.0 Flash-Lite*\n\n")
+            f.write(f"*Научный комментарий от Alexey Turchin*\n\n")
             f.write("---\n\n")
             f.write(f"{commentary}\n\n")
             f.write("---\n\n")
-            f.write("## 🏆 ТОП-3 Научные новости:\n\n")
-            
-            for i, item in enumerate(top_3_news, 1):
-                medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉"
-                f.write(f"### {medal} {i}. {item['title']}\n")
-                f.write(f"**Важность:** {item['importance_score']} очков\n\n")
-                if item['description']:
-                    f.write(f"{item['description']}\n\n")
-                f.write(f"**Источник:** {item['source']}\n")
-                if item['link']:
-                    f.write(f"**Ссылка:** {item['link']}\n")
-                f.write("\n---\n\n")
+            f.write("## 📰 Исходная новость:\n\n")
+            f.write(f"### {top_news['title']}\n\n")
+            if top_news['description']:
+                f.write(f"{top_news['description']}\n\n")
+            f.write(f"**Источник:** {top_news['source']}\n")
+            if top_news['link']:
+                f.write(f"**Ссылка:** {top_news['link']}\n")
+            f.write(f"**Важность:** {top_news['importance_score']} очков\n")
         
         stats_filename = os.path.join(directory, f'science_stats_{timestamp}.txt')
         with open(stats_filename, 'w', encoding='utf-8') as f:
-            f.write("=== НАУЧНЫЙ GEMINI 2.0 FLASH-LITE ТОП-3 ===\n")
+            f.write("=== ALEXEY TURCHIN НАУЧНЫЙ КОММЕНТАРИЙ ===\n")
             f.write(f"Время: {date_formatted}\n")
-            f.write("Модель: Gemini 2.0 Flash-Lite (Science)\n")
-            f.write("Научных новостей: ТОП-3\n")
-            f.write(f"Длина анализа: {len(commentary)} символов\n")
+            f.write("Автор: Alexey Turchin (сайдлоад)\n")
+            f.write("Модель: Gemini 2.0 Flash-Lite\n")
+            f.write("Новостей: 1 (ТОП)\n")
+            f.write(f"Длина комментария: {len(commentary)} символов\n")
             f.write(f"ID: {timestamp}\n")
-            for i, item in enumerate(top_3_news, 1):
-                f.write(f"Новость {i}: {item['importance_score']} очков - {item['title'][:50]}...\n")
+            f.write(f"Новость: {top_news['importance_score']} очков - {top_news['title'][:50]}...\n")
         
-        print(f"✅ ТОП-3 анализ сохранён в: {main_filename}")
+        print(f"✅ Комментарий сохранён в: {main_filename}")
         print(f"📊 Статистика: {stats_filename}")
         
         return True
@@ -651,7 +617,7 @@ def save_science_results(commentary, top_3_news, init_response, prompt):
 
 def main():
     try:
-        print("🏆 === GEMINI 2.0 FLASH-LITE ТОП-3 НАУЧНЫЙ АНАЛИЗАТОР + TELEGRAM ===")
+        print("💬 === ALEXEY TURCHIN НАУЧНЫЙ КОММЕНТАТОР + TELEGRAM ===")
         
         # Проверяем API ключи
         gemini_api_key = os.getenv('GEMINI_API_KEY')
@@ -688,28 +654,28 @@ def main():
         
         time.sleep(1)
         
-        top_3_news = get_top_science_news()
-        if not top_3_news:
-            print("❌ Нет научных новостей для ТОП-3")
+        top_news = get_top_science_news()
+        if not top_news:
+            print("❌ Нет научных новостей")
             return False
         
         time.sleep(1)
         
-        commentary, prompt = generate_science_commentary(model, top_3_news)
+        commentary, prompt = generate_science_commentary(model, top_news)
         if not commentary:
-            print("❌ Flash-Lite не создал анализ ТОП-3")
+            print("❌ Flash-Lite не создал комментарий")
             return False
         
-        save_success = save_science_results(commentary, top_3_news, init_response, prompt)
+        save_success = save_science_results(commentary, top_news, init_response, prompt)
         if not save_success:
             print("⚠️ Ошибка сохранения, но продолжаем...")
         
-        telegram_text = format_for_telegram(commentary, top_3_news)
+        telegram_text = format_for_telegram(commentary, top_news)
         
         telegram_success = send_to_telegram(telegram_bot_token, telegram_channel_id, telegram_text)
         
         if telegram_success:
-            print("🎉 УСПЕХ! Анализ опубликован в Telegram!")
+            print("🎉 УСПЕХ! Комментарий Alexey Turchin опубликован в Telegram!")
             return True
         else:
             print("❌ Ошибка публикации в Telegram")
