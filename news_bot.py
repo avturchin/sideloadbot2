@@ -69,7 +69,7 @@ def extract_response_content(text):
         return text.strip()
 
 def get_available_models():
-    """Получает список доступных моделей с приоритетом умных моделей"""
+    """Получает список доступных моделей с приоритетом Gemini Pro 2.5"""
     try:
         print("🔄 Проверяем доступные модели Gemini...")
         models = genai.list_models()
@@ -78,7 +78,14 @@ def get_available_models():
         for model in models:
             if 'generateContent' in model.supported_generation_methods:
                 available_models.append(model.name)
-                print(f"🤖 Доступна модель: {model.name}")
+                if '2.5' in model.name and 'pro' in model.name.lower():
+                    print(f"💎 GEMINI PRO 2.5: {model.name}")
+                elif 'pro' in model.name.lower():
+                    print(f"💎 PRO: {model.name}")
+                elif '2.0' in model.name:
+                    print(f"⚡ 2.0: {model.name}")
+                else:
+                    print(f"🤖 Модель: {model.name}")
         
         print(f"📊 Всего доступно {len(available_models)} моделей")
         return available_models
@@ -250,208 +257,228 @@ def get_top_science_news():
         print("❌ Научные новости не найдены")
         return None
 
-def initialize_smart_gemini(facts):
-    """Инициализирует САМУЮ УМНУЮ доступную модель Gemini"""
+def initialize_gemini_pro_2_5(facts):
+    """Инициализирует Gemini Pro 2.5"""
     
     available_models = get_available_models()
     if not available_models:
         return None, "Нет моделей"
     
-    # ПРИОРИТЕТ: самые умные модели
-    smart_models_priority = [
-        'models/gemini-2.0-flash-thinking-exp',     # 🧠 ЭКСПЕРИМЕНТАЛЬНАЯ ДУМАЮЩАЯ
-        'models/gemini-2.0-flash-thinking',        # 🧠 ДУМАЮЩАЯ
-        'models/gemini-exp-1206',                  # 🧠 ЭКСПЕРИМЕНТАЛЬНАЯ
-        'models/gemini-exp-1121',                  # 🧠 ЭКСПЕРИМЕНТАЛЬНАЯ
-        'models/gemini-2.0-flash-exp',             # ⚡ 2.0 ЭКСПЕРИМЕНТАЛЬНАЯ
-        'models/gemini-2.0-flash',                 # ⚡ 2.0 СТАБИЛЬНАЯ
-        'models/gemini-1.5-pro-002',              # 💎 PRO НОВАЯ
-        'models/gemini-1.5-pro-001',              # 💎 PRO
-        'models/gemini-1.5-pro',                  # 💎 PRO
-        'models/gemini-1.5-flash-8b',             # ⚡ КОМПАКТНАЯ
-        'models/gemini-1.5-flash-002',            # ⚡ FLASH НОВАЯ
-        'models/gemini-1.5-flash',                # ⚡ FLASH
-        'models/gemini-2.0-flash-lite',           # 💨 LITE
+    # ПРИОРИТЕТ: Gemini Pro 2.5
+    target_models = [
+        'models/gemini-2.5-pro',              # 💎 PRO 2.5 основная
+        'models/gemini-2.5-pro-002',          # 💎 PRO 2.5 версия 002
+        'models/gemini-2.5-pro-001',          # 💎 PRO 2.5 версия 001
+        'models/gemini-2.5-pro-exp',          # 💎 PRO 2.5 экспериментальная
+        'models/gemini-1.5-pro-002',          # 💎 PRO 1.5 fallback
+        'models/gemini-1.5-pro',              # 💎 PRO 1.5 fallback
+        'models/gemini-2.0-flash',            # ⚡ 2.0 fallback
     ]
     
     selected_model = None
-    model_type = ""
+    model_version = ""
     
-    for model in smart_models_priority:
+    for model in target_models:
         if model in available_models:
             selected_model = model
             
-            if 'thinking' in model:
-                model_type = "🧠 ДУМАЮЩАЯ МОДЕЛЬ"
-            elif 'exp' in model:
-                model_type = "🧪 ЭКСПЕРИМЕНТАЛЬНАЯ"
-            elif 'pro' in model:
-                model_type = "💎 PRO МОДЕЛЬ"
+            if '2.5' in model and 'pro' in model:
+                model_version = "💎 GEMINI PRO 2.5"
+            elif '1.5' in model and 'pro' in model:
+                model_version = "💎 GEMINI PRO 1.5 (fallback)"
             elif '2.0' in model:
-                model_type = "⚡ GEMINI 2.0"
-            elif 'flash' in model:
-                model_type = "⚡ FLASH МОДЕЛЬ"
+                model_version = "⚡ GEMINI 2.0 (fallback)"
             else:
-                model_type = "🤖 СТАНДАРТНАЯ"
+                model_version = "🤖 ДРУГАЯ МОДЕЛЬ"
             
-            print(f"🎯 ВЫБРАНА САМАЯ УМНАЯ: {selected_model}")
-            print(f"🏷️ Тип: {model_type}")
+            print(f"🎯 ВЫБРАНА: {selected_model}")
+            print(f"🏷️ Версия: {model_version}")
             break
     
     if not selected_model:
         selected_model = available_models[0]
-        model_type = "🤖 FALLBACK"
+        model_version = "🤖 FALLBACK"
         print(f"⚠️ Используем fallback: {selected_model}")
     
     try:
-        system_instruction = f"""Ты - Alexey Turchin, всемирно известный российский трансгуманист, футуролог и исследователь проблем экзистенциального риска. Ты автор книг о бессмертии и глобальных рисках. База знаний:
+        # Сокращенная система инструкций для избежания safety блокировки
+        system_instruction = f"""Ты - Alexey Turchin, российский ученый и футуролог. Анализируй научные новости профессионально.
 
-{facts}
+База знаний: {facts[:5000]}...
 
-Анализируй научные открытия через призму трансгуманизма и их влияние на будущее человечества. Пиши глубокие экспертные комментарии с философской и футурологической точки зрения.
-
-ВАЖНОЕ ПРАВИЛО ФОРМАТИРОВАНИЯ: 
-- Начинай ответ с (RESPONSE)
-- Пиши ТОЛЬКО свой экспертный комментарий
-- Заканчивай (CONFIDENCE)
-- НЕ ДОБАВЛЯЙ ничего после (CONFIDENCE)
-
-СТИЛЬ: Интеллектуальный, с научной терминологией, упоминания трансгуманистических идей, прогнозы развития технологий.
-
-ПРИМЕР:
+ФОРМАТ ОТВЕТА:
 (RESPONSE)
-Ваш глубокий экспертный комментарий новости с трансгуманистической перспективой...
-(CONFIDENCE)
+[комментарий новости]
+(CONFIDENCE)"""
 
-Больше НИЧЕГО не пиши!"""
-
-        print(f"🧠 Создаем УМНУЮ модель ({len(system_instruction)} символов)...")
+        print(f"💎 Создаем Gemini Pro 2.5 ({len(system_instruction)} символов)...")
         
         model = genai.GenerativeModel(
             model_name=selected_model,
             system_instruction=system_instruction
         )
         
-        # Настройки для умных моделей
-        if 'thinking' in selected_model:
-            # Для думающих моделей - больше токенов
-            generation_config = genai.types.GenerationConfig(
-                temperature=0.8,
-                top_p=0.9,
-                max_output_tokens=2000,
-            )
-        elif 'pro' in selected_model:
-            # Для PRO моделей - высокое качество
-            generation_config = genai.types.GenerationConfig(
-                temperature=0.7,
-                top_p=0.95,
-                max_output_tokens=1500,
-            )
-        else:
-            # Для остальных
-            generation_config = genai.types.GenerationConfig(
-                temperature=0.8,
-                top_p=0.9,
-                max_output_tokens=1000,
-            )
+        # Настройки безопасности - более мягкие
+        safety_settings = [
+            {
+                "category": "HARM_CATEGORY_HARASSMENT",
+                "threshold": "BLOCK_NONE"
+            },
+            {
+                "category": "HARM_CATEGORY_HATE_SPEECH",
+                "threshold": "BLOCK_NONE"
+            },
+            {
+                "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                "threshold": "BLOCK_NONE"
+            },
+            {
+                "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+                "threshold": "BLOCK_NONE"
+            }
+        ]
         
-        print(f"🧪 Тестируем {model_type}...")
-        test_response = model.generate_content(
-            "Готов анализировать научные новости как Alexey Turchin? Ответь в указанном формате.",
-            generation_config=generation_config
+        # Настройки генерации для Pro 2.5
+        generation_config = genai.types.GenerationConfig(
+            temperature=0.7,
+            top_p=0.9,
+            max_output_tokens=1500,
         )
         
-        if test_response and test_response.text:
-            extracted_response = extract_response_content(test_response.text)
-            print(f"✅ {model_type} готова: {extracted_response}")
-            return model, extracted_response
+        print(f"🧪 Тестируем {model_version}...")
+        test_response = model.generate_content(
+            "Готов анализировать научные новости? Ответь в формате (RESPONSE) текст (CONFIDENCE).",
+            generation_config=generation_config,
+            safety_settings=safety_settings
+        )
+        
+        # Обработка ответа с проверкой safety
+        if test_response and test_response.candidates:
+            candidate = test_response.candidates[0]
+            print(f"🔍 Finish reason: {candidate.finish_reason}")
+            print(f"🔍 Safety ratings: {candidate.safety_ratings}")
+            
+            if candidate.finish_reason == 1:  # STOP - успешное завершение
+                if candidate.content and candidate.content.parts:
+                    text = candidate.content.parts[0].text
+                    extracted_response = extract_response_content(text)
+                    print(f"✅ {model_version} готов: {extracted_response}")
+                    return model, extracted_response
+                else:
+                    print(f"❌ {model_version}: нет текста в ответе")
+            else:
+                print(f"❌ {model_version}: blocked by safety (finish_reason: {candidate.finish_reason})")
         else:
-            print(f"❌ {model_type}: пустой ответ")
-            return None, "Пустой ответ"
+            print(f"❌ {model_version}: нет кандидатов в ответе")
             
     except Exception as e:
-        print(f"❌ Ошибка {model_type}: {e}")
+        print(f"❌ Ошибка {model_version}: {e}")
         
-        try:
-            print(f"🔄 {model_type} fallback...")
-            simple_system = f"""Ты - Alexey Turchin, трансгуманист. 
-
-ВАЖНО:
-(RESPONSE)
-Пиши только умный комментарий
-(CONFIDENCE)"""
-            
-            model = genai.GenerativeModel(
-                model_name=selected_model,
-                system_instruction=simple_system
-            )
-            
-            test_response = model.generate_content(
-                "Готов?",
-                generation_config=generation_config
-            )
-            
-            if test_response and test_response.text:
-                extracted_response = extract_response_content(test_response.text)
-                print(f"✅ {model_type} fallback: {extracted_response}")
+    # Простой fallback
+    try:
+        print(f"🔄 {model_version} простой fallback...")
+        simple_system = "Ты эксперт по науке. Формат: (RESPONSE) комментарий (CONFIDENCE)"
+        
+        model = genai.GenerativeModel(
+            model_name=selected_model,
+            system_instruction=simple_system
+        )
+        
+        test_response = model.generate_content(
+            "Готов?",
+            generation_config=generation_config,
+            safety_settings=safety_settings
+        )
+        
+        if test_response and test_response.candidates:
+            candidate = test_response.candidates[0]
+            if candidate.finish_reason == 1 and candidate.content and candidate.content.parts:
+                text = candidate.content.parts[0].text
+                extracted_response = extract_response_content(text)
+                print(f"✅ {model_version} fallback: {extracted_response}")
                 return model, extracted_response
                 
-        except Exception as e2:
-            print(f"❌ {model_type} fallback: {e2}")
-        
-        return None, str(e)
+    except Exception as e2:
+        print(f"❌ {model_version} fallback: {e2}")
+    
+    return None, f"{model_version} недоступен"
 
 def generate_science_commentary(model, selected_news):
     """Генерирует научный комментарий для выбранной новости"""
     if not model or not selected_news:
         return None, None
     
-    print("🧠 УМНАЯ модель анализирует научную новость...")
+    print("💎 Gemini Pro 2.5 анализирует научную новость...")
     
-    analysis_prompt = f"""Прокомментируй эту научную новость как трансгуманист Alexey Turchin:
+    # Простой промпт для избежания safety блокировки
+    analysis_prompt = f"""Прокомментируй научную новость:
 
-ЗАГОЛОВОК: {selected_news['title']}
+Заголовок: {selected_news['title']}
+Описание: {selected_news['description']}
+Источник: {selected_news['source']}
 
-ОПИСАНИЕ: {selected_news['description']}
+Дай экспертный анализ значимости этого открытия.
 
-ИСТОЧНИК: {selected_news['source']}
-
-Дай глубокий экспертный анализ через призму трансгуманизма:
-- Как это повлияет на продление жизни?
-- Какие это открывает возможности для улучшения человека?
-- Связь с футурологическими трендами
-- Философские импликации
-
-ВАЖНО: Строго соблюдай формат!
+Формат:
 (RESPONSE)
-[только твой умный комментарий]
+комментарий
 (CONFIDENCE)"""
     
     try:
         generation_config = genai.types.GenerationConfig(
             temperature=0.8,
-            top_p=0.95,
+            top_p=0.9,
             max_output_tokens=1500,
         )
         
-        print(f"🧠 УМНАЯ модель генерирует комментарий ({len(analysis_prompt)} символов)...")
+        safety_settings = [
+            {
+                "category": "HARM_CATEGORY_HARASSMENT",
+                "threshold": "BLOCK_NONE"
+            },
+            {
+                "category": "HARM_CATEGORY_HATE_SPEECH",
+                "threshold": "BLOCK_NONE"
+            },
+            {
+                "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                "threshold": "BLOCK_NONE"
+            },
+            {
+                "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+                "threshold": "BLOCK_NONE"
+            }
+        ]
+        
+        print(f"💎 Gemini Pro 2.5 генерирует комментарий ({len(analysis_prompt)} символов)...")
         
         response = model.generate_content(
             analysis_prompt,
-            generation_config=generation_config
+            generation_config=generation_config,
+            safety_settings=safety_settings
         )
         
-        if response and response.text:
-            print(f"📄 RAW ответ УМНОЙ модели ({len(response.text)} символов)")
-            extracted_commentary = extract_response_content(response.text)
-            print(f"✅ Умный комментарий обрезан до ({len(extracted_commentary)} символов)")
-            return extracted_commentary, analysis_prompt
+        if response and response.candidates:
+            candidate = response.candidates[0]
+            print(f"🔍 Finish reason: {candidate.finish_reason}")
+            
+            if candidate.finish_reason == 1:  # STOP
+                if candidate.content and candidate.content.parts:
+                    text = candidate.content.parts[0].text
+                    print(f"📄 RAW ответ Gemini Pro 2.5 ({len(text)} символов)")
+                    extracted_commentary = extract_response_content(text)
+                    print(f"✅ Комментарий Pro 2.5 обрезан до ({len(extracted_commentary)} символов)")
+                    return extracted_commentary, analysis_prompt
+                else:
+                    return "Gemini Pro 2.5: нет текста", analysis_prompt
+            else:
+                return f"Gemini Pro 2.5: заблокировано safety (reason: {candidate.finish_reason})", analysis_prompt
         else:
-            return "УМНАЯ модель: ошибка генерации комментария", analysis_prompt
+            return "Gemini Pro 2.5: нет кандидатов", analysis_prompt
             
     except Exception as e:
-        print(f"❌ Ошибка комментария УМНОЙ модели: {e}")
-        return f"УМНАЯ модель ошибка: {e}", analysis_prompt
+        print(f"❌ Ошибка комментария Gemini Pro 2.5: {e}")
+        return f"Gemini Pro 2.5 ошибка: {e}", analysis_prompt
 
 def clean_text_for_telegram(text):
     """Очищает текст от проблематичных символов для Telegram"""
@@ -567,7 +594,7 @@ def format_for_telegram_group(commentary, selected_news):
     
     telegram_text = f"💬 Комментарии от сайдлоада Alexey Turchin\n"
     telegram_text += f"📅 {date_formatted}\n"
-    telegram_text += f"🧠 Анализ от УМНОЙ модели Gemini\n\n"
+    telegram_text += f"💎 Анализ от Gemini Pro 2.5\n\n"
     telegram_text += "═══════════════════\n\n"
     
     telegram_text += f"{commentary}\n\n"
@@ -606,14 +633,14 @@ def save_science_results(commentary, selected_news, init_response, prompt):
     date_formatted = now.strftime("%d.%m.%Y %H:%M:%S")
     
     try:
-        main_filename = os.path.join(directory, f'science_turchin_smart_{timestamp}.md')
+        main_filename = os.path.join(directory, f'science_turchin_pro25_{timestamp}.md')
         
-        print(f"💾 Сохраняем УМНЫЙ научный комментарий: {main_filename}")
+        print(f"💾 Сохраняем комментарий Gemini Pro 2.5: {main_filename}")
         
         with open(main_filename, 'w', encoding='utf-8') as f:
-            f.write(f"# 💬 Комментарии от Alexey Turchin (УМНАЯ МОДЕЛЬ)\n")
+            f.write(f"# 💬 Комментарии от Alexey Turchin (Gemini Pro 2.5)\n")
             f.write(f"## {date_formatted}\n\n")
-            f.write(f"*Трансгуманистический комментарий от Alexey Turchin (случайная новость)*\n\n")
+            f.write(f"*Экспертный комментарий от Alexey Turchin (случайная новость)*\n\n")
             f.write("---\n\n")
             f.write(f"{commentary}\n\n")
             f.write("---\n\n")
@@ -626,19 +653,19 @@ def save_science_results(commentary, selected_news, init_response, prompt):
                 f.write(f"**Ссылка:** {selected_news['link']}\n")
             f.write(f"**Важность:** {selected_news['importance_score']} очков\n")
         
-        stats_filename = os.path.join(directory, f'science_stats_smart_{timestamp}.txt')
+        stats_filename = os.path.join(directory, f'science_stats_pro25_{timestamp}.txt')
         with open(stats_filename, 'w', encoding='utf-8') as f:
-            f.write("=== ALEXEY TURCHIN УМНЫЙ КОММЕНТАРИЙ ===\n")
+            f.write("=== ALEXEY TURCHIN GEMINI PRO 2.5 КОММЕНТАРИЙ ===\n")
             f.write(f"Время: {date_formatted}\n")
             f.write("Автор: Alexey Turchin (сайдлоад)\n")
-            f.write("Модель: УМНАЯ Gemini (приоритет: thinking > exp > pro > 2.0)\n")
+            f.write("Модель: Gemini Pro 2.5\n")
             f.write("Группа: Alexey & Alexey Turchin sideload news comments\n")
             f.write("Новостей: 1 (случайная из ТОП-5)\n")
             f.write(f"Длина комментария: {len(commentary)} символов\n")
             f.write(f"ID: {timestamp}\n")
             f.write(f"Новость: {selected_news['importance_score']} очков - {selected_news['title'][:50]}...\n")
         
-        print(f"✅ УМНЫЙ комментарий сохранён в: {main_filename}")
+        print(f"✅ Комментарий Pro 2.5 сохранён в: {main_filename}")
         print(f"📊 Статистика: {stats_filename}")
         
         return True
@@ -650,7 +677,7 @@ def save_science_results(commentary, selected_news, init_response, prompt):
 
 def main():
     try:
-        print("🧠 === ALEXEY TURCHIN УМНЫЙ КОММЕНТАТОР → TELEGRAM ГРУППА ===")
+        print("💎 === ALEXEY TURCHIN GEMINI PRO 2.5 КОММЕНТАТОР → TELEGRAM ГРУППА ===")
         
         # Проверяем API ключи
         gemini_api_key = os.getenv('GEMINI_API_KEY')
@@ -679,9 +706,9 @@ def main():
             print("❌ Нет фактов")
             return False
         
-        model, init_response = initialize_smart_gemini(facts)
+        model, init_response = initialize_gemini_pro_2_5(facts)
         if not model:
-            print("❌ УМНАЯ модель не инициализирована")
+            print("❌ Gemini Pro 2.5 не инициализирован")
             return False
         
         time.sleep(1)
@@ -695,7 +722,7 @@ def main():
         
         commentary, prompt = generate_science_commentary(model, selected_news)
         if not commentary:
-            print("❌ УМНАЯ модель не создала комментарий")
+            print("❌ Gemini Pro 2.5 не создал комментарий")
             return False
         
         save_success = save_science_results(commentary, selected_news, init_response, prompt)
@@ -707,7 +734,7 @@ def main():
         telegram_success = send_to_telegram_group(telegram_bot_token, telegram_group_id, telegram_text)
         
         if telegram_success:
-            print("🎉 УСПЕХ! УМНЫЙ комментарий Alexey Turchin опубликован в Telegram группе!")
+            print("🎉 УСПЕХ! Комментарий Alexey Turchin (Gemini Pro 2.5) опубликован!")
             print("👥 Группа: Alexey & Alexey Turchin sideload news comments")
             print(f"🎲 Новость: {selected_news['title'][:60]}...")
             return True
