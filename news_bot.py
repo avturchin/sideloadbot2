@@ -393,15 +393,15 @@ def generate_science_commentary(model, selected_news):
 
 ИСТОЧНИК: {selected_news['source']}
 
-Дай краткий экспертный анализ через призму трансгуманизма:
+Дай краткий но полный экспертный анализ через призму трансгуманизма:
 - Как это открытие повлияет на продление жизни человека?
 - Какие возможности это открывает для улучшения человека?
 - Связь с трансгуманистическими трендами
 - Значимость для будущего человечества
 
-ВАЖНО: Строго соблюдай формат!
+ВАЖНО: Строго соблюдай формат и ЗАВЕРШАЙ мысль!
 (RESPONSE)
-[краткий экспертный комментарий как Alexey Turchin]
+[полный экспертный комментарий как Alexey Turchin]
 (CONFIDENCE)"""
     
     prompt_tokens = estimate_tokens(analysis_prompt)
@@ -411,7 +411,7 @@ def generate_science_commentary(model, selected_news):
         generation_config = genai.types.GenerationConfig(
             temperature=0.8,
             top_p=0.95,
-            max_output_tokens=800,
+            max_output_tokens=1200,  # ⬆️ УВЕЛИЧЕНО с 800 до 1200
         )
         
         safety_settings = [
@@ -421,7 +421,7 @@ def generate_science_commentary(model, selected_news):
             {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}
         ]
         
-        print(f"⚡ Gemini 2.0 Flash генерирует комментарий...")
+        print(f"⚡ Gemini 2.0 Flash генерирует комментарий (макс. {generation_config.max_output_tokens} токенов)...")
         
         response = model.generate_content(
             analysis_prompt,
@@ -433,17 +433,73 @@ def generate_science_commentary(model, selected_news):
             candidate = response.candidates[0]
             print(f"🔍 Finish reason: {candidate.finish_reason}")
             
-            if candidate.finish_reason in [1, 2]:  # STOP или MAX_TOKENS
+            if candidate.finish_reason == 1:  # STOP - полный ответ
                 if candidate.content and candidate.content.parts:
                     text = candidate.content.parts[0].text
-                    print(f"📄 RAW ответ Gemini 2.0 Flash ({len(text)} символов)")
+                    print(f"📄 RAW ответ Gemini 2.0 Flash ({len(text)} символов) - ПОЛНЫЙ")
                     extracted_commentary = extract_response_content(text)
                     print(f"✅ Комментарий готов ({len(extracted_commentary)} символов)")
                     return extracted_commentary, analysis_prompt
                 else:
                     return "Нет текста в ответе", analysis_prompt
+                    
+            elif candidate.finish_reason == 2:  # MAX_TOKENS - обрезанный ответ
+                if candidate.content and candidate.content.parts:
+                    text = candidate.content.parts[0].text
+                    print(f"⚠️ RAW ответ Gemini 2.0 Flash ({len(text)} символов) - ОБРЕЗАН по лимиту токенов")
+                    extracted_commentary = extract_response_content(text)
+                    
+                    # Пытаемся дополнить обрезанный ответ
+                    if not extracted_commentary.endswith('.') and not extracted_commentary.endswith('!'):
+                        print(f"🔧 Пытаемся дополнить обрезанный ответ...")
+                        
+                        continuation_prompt = f"""Продолжи и ЗАВЕРШИ этот комментарий Alexey Turchin:
+
+{extracted_commentary}
+
+Дополни максимум 2-3 предложения и заверши мысль. Формат:
+(RESPONSE)
+[продолжение и завершение]
+(CONFIDENCE)"""
+
+                        continuation_config = genai.types.GenerationConfig(
+                            temperature=0.8,
+                            top_p=0.95,
+                            max_output_tokens=300,  # Короткое дополнение
+                        )
+                        
+                        time.sleep(2)  # Пауза между запросами
+                        
+                        try:
+                            continuation_response = model.generate_content(
+                                continuation_prompt,
+                                generation_config=continuation_config,
+                                safety_settings=safety_settings
+                            )
+                            
+                            if continuation_response and continuation_response.candidates:
+                                cont_candidate = continuation_response.candidates[0]
+                                if cont_candidate.finish_reason in [1, 2] and cont_candidate.content and cont_candidate.content.parts:
+                                    continuation_text = cont_candidate.content.parts[0].text
+                                    continuation_extracted = extract_response_content(continuation_text)
+                                    
+                                    # Объединяем основной ответ с продолжением
+                                    full_commentary = extracted_commentary + " " + continuation_extracted
+                                    print(f"🔧 Ответ дополнен! Итого: {len(full_commentary)} символов")
+                                    return full_commentary, analysis_prompt
+                                    
+                        except Exception as cont_e:
+                            print(f"⚠️ Не удалось дополнить ответ: {cont_e}")
+                    
+                    # Если дополнение не сработало, возвращаем как есть
+                    print(f"⚠️ Комментарий может быть неполным ({len(extracted_commentary)} символов)")
+                    return extracted_commentary + "...", analysis_prompt
+                else:
+                    return "Нет текста в обрезанном ответе", analysis_prompt
             else:
                 print(f"❌ Finish reason: {candidate.finish_reason}")
+                if hasattr(candidate, 'safety_ratings'):
+                    print(f"🔍 Safety ratings: {candidate.safety_ratings}")
                 return f"Проблема {candidate.finish_reason}", analysis_prompt
         else:
             return "Нет candidates", analysis_prompt
