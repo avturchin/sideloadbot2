@@ -34,163 +34,35 @@ def load_facts():
         traceback.print_exc()
         return ""
 
-def validate_bot_token(bot_token):
-    """Проверяет валидность токена бота"""
+def extract_response_content(text):
+    """Извлекает содержимое между (RESPONSE) и (CONFIDENCE)"""
     try:
-        print(f"🔍 Проверяем токен бота: {bot_token[:10]}...")
+        # Ищем начало (RESPONSE)
+        start_marker = "(RESPONSE)"
+        end_marker = "(CONFIDENCE)"
         
-        url = f"https://api.telegram.org/bot{bot_token}/getMe"
-        response = requests.get(url, timeout=10)
+        start_index = text.find(start_marker)
+        if start_index == -1:
+            print("⚠️ Маркер (RESPONSE) не найден, возвращаем полный текст")
+            return text.strip()
         
-        print(f"📊 HTTP Status: {response.status_code}")
+        # Начинаем после маркера (RESPONSE)
+        start_index += len(start_marker)
         
-        if response.status_code == 200:
-            data = response.json()
-            
-            if data['ok']:
-                bot_info = data['result']
-                print(f"✅ Бот найден!")
-                print(f"   ID: {bot_info['id']}")
-                print(f"   Имя: {bot_info['first_name']}")
-                print(f"   Username: @{bot_info.get('username', 'нет username')}")
-                return True, bot_info
-            else:
-                print(f"❌ Ошибка API: {data}")
-                return False, data
+        # Ищем конец (CONFIDENCE)
+        end_index = text.find(end_marker, start_index)
+        if end_index == -1:
+            print("⚠️ Маркер (CONFIDENCE) не найден, берем текст до конца")
+            extracted = text[start_index:].strip()
         else:
-            print(f"❌ HTTP ошибка: {response.status_code}")
-            print(f"📄 Ответ: {response.text}")
-            return False, None
-            
-    except Exception as e:
-        print(f"❌ Ошибка проверки токена: {e}")
-        return False, None
-
-def force_get_chat_id(bot_token):
-    """Принудительно получает Chat ID через webhook и polling"""
-    try:
-        print("🔍 ПРИНУДИТЕЛЬНЫЙ ПОИСК CHAT ID...")
+            extracted = text[start_index:end_index].strip()
         
-        # Сначала очищаем webhook (если есть)
-        print("🔄 Очищаем webhook...")
-        webhook_url = f"https://api.telegram.org/bot{bot_token}/deleteWebhook"
-        requests.post(webhook_url, timeout=10)
-        
-        # Получаем обновления с offset=0 (все сообщения)
-        print("🔄 Получаем ВСЕ обновления...")
-        updates_url = f"https://api.telegram.org/bot{bot_token}/getUpdates?offset=0&limit=100"
-        response = requests.get(updates_url, timeout=15)
-        
-        if response.status_code == 200:
-            data = response.json()
-            if data['ok']:
-                updates = data['result']
-                print(f"📊 Всего обновлений: {len(updates)}")
-                
-                if not updates:
-                    print("❌ ОБНОВЛЕНИЙ НЕТ!")
-                    print("💡 РЕШЕНИЕ:")
-                    print("1. Найдите бота в Telegram")
-                    print("2. Нажмите 'START' или напишите '/start'")
-                    print("3. Напишите любое сообщение (например: 'привет')")
-                    print("4. Подождите 10 секунд")
-                    print("5. Запустите скрипт снова")
-                    return None
-                
-                # Ищем приватные чаты
-                found_chats = []
-                for update in updates:
-                    if 'message' in update:
-                        chat = update['message']['chat']
-                        user = update['message']['from']
-                        message_text = update['message'].get('text', '')
-                        
-                        print(f"💬 Найдено сообщение:")
-                        print(f"   От: {user.get('first_name', 'Unknown')} (@{user.get('username', 'no_username')})")
-                        print(f"   Текст: '{message_text}'")
-                        print(f"   Chat ID: {chat['id']}")
-                        print(f"   Chat Type: {chat['type']}")
-                        
-                        if chat['type'] == 'private':
-                            found_chats.append(chat['id'])
-                
-                if found_chats:
-                    # Берем последний приватный чат
-                    recommended_id = found_chats[-1]
-                    print(f"🎯 РЕКОМЕНДУЕМЫЙ CHAT ID: {recommended_id}")
-                    return recommended_id
-                else:
-                    print("❌ Приватные чаты не найдены")
-                    return None
-            else:
-                print(f"❌ API ошибка: {data}")
-                return None
-        else:
-            print(f"❌ HTTP ошибка: {response.status_code}")
-            return None
-            
-    except Exception as e:
-        print(f"❌ Ошибка поиска Chat ID: {e}")
-        return None
-
-def wait_for_user_message(bot_token, timeout_seconds=60):
-    """Ждет сообщение от пользователя в течение timeout_seconds"""
-    try:
-        print(f"⏳ Ждем ваше сообщение боту в течение {timeout_seconds} секунд...")
-        print("💡 СЕЙЧАС НАПИШИТЕ БОТУ ЛЮБОЕ СООБЩЕНИЕ!")
-        
-        start_time = time.time()
-        last_update_id = 0
-        
-        # Получаем последний update_id
-        url = f"https://api.telegram.org/bot{bot_token}/getUpdates"
-        response = requests.get(url, timeout=10)
-        if response.status_code == 200:
-            data = response.json()
-            if data['ok'] and data['result']:
-                last_update_id = data['result'][-1]['update_id']
-        
-        while time.time() - start_time < timeout_seconds:
-            try:
-                # Получаем новые обновления
-                url = f"https://api.telegram.org/bot{bot_token}/getUpdates?offset={last_update_id + 1}&timeout=5"
-                response = requests.get(url, timeout=10)
-                
-                if response.status_code == 200:
-                    data = response.json()
-                    if data['ok'] and data['result']:
-                        for update in data['result']:
-                            last_update_id = update['update_id']
-                            
-                            if 'message' in update:
-                                chat = update['message']['chat']
-                                user = update['message']['from']
-                                text = update['message'].get('text', '')
-                                
-                                print(f"🎉 ПОЛУЧЕНО СООБЩЕНИЕ!")
-                                print(f"   От: {user.get('first_name', 'Unknown')}")
-                                print(f"   Текст: '{text}'")
-                                print(f"   Chat ID: {chat['id']}")
-                                
-                                if chat['type'] == 'private':
-                                    return chat['id']
-                
-                remaining = int(timeout_seconds - (time.time() - start_time))
-                if remaining > 0 and remaining % 10 == 0:
-                    print(f"⏳ Еще {remaining} секунд...")
-                
-                time.sleep(1)
-                
-            except Exception as e:
-                print(f"⚠️ Ошибка при ожидании: {e}")
-                time.sleep(2)
-        
-        print("⏰ Время ожидания истекло")
-        return None
+        print(f"✂️ Извлечено содержимое между маркерами ({len(extracted)} символов)")
+        return extracted
         
     except Exception as e:
-        print(f"❌ Ошибка ожидания сообщения: {e}")
-        return None
+        print(f"❌ Ошибка извлечения содержимого: {e}")
+        return text.strip()
 
 def get_available_models():
     """Получает список доступных моделей с приоритетом Flash-Lite"""
@@ -425,7 +297,9 @@ def initialize_science_flash_lite(facts):
 Фокусируйся на: медицине, биологии, физике, химии, космосе, ИИ, робототехнике, экологии.
 Игнорируй политику, экономику, спорт.
 
-Пиши профессионально, но доступно."""
+Пиши профессионально, но доступно.
+
+ВАЖНО: Всегда начинай ответ с (RESPONSE) и заканчивай (CONFIDENCE)."""
 
         print(f"🔬 Создаем научный Flash-Lite ({len(system_instruction)} символов)...")
         
@@ -448,8 +322,10 @@ def initialize_science_flash_lite(facts):
         )
         
         if test_response and test_response.text:
-            print(f"✅ Научный Flash-Lite готов: {test_response.text}")
-            return model, test_response.text
+            # Извлекаем содержимое между маркерами
+            extracted_response = extract_response_content(test_response.text)
+            print(f"✅ Научный Flash-Lite готов: {extracted_response}")
+            return model, extracted_response
         else:
             print("❌ Научный Flash-Lite: пустой ответ")
             return None, "Пустой ответ"
@@ -460,7 +336,7 @@ def initialize_science_flash_lite(facts):
         # Fallback
         try:
             print("🔬 Научный Flash-Lite fallback...")
-            simple_system = "Ты аналитик научных новостей. Анализируй открытия, исследования, технологии."
+            simple_system = "Ты аналитик научных новостей. Анализируй открытия, исследования, технологии. Всегда начинай ответ с (RESPONSE) и заканчивай (CONFIDENCE)."
             
             model = genai.GenerativeModel(
                 model_name=selected_model,
@@ -473,8 +349,9 @@ def initialize_science_flash_lite(facts):
             )
             
             if test_response and test_response.text:
-                print(f"✅ Научный Flash-Lite fallback: {test_response.text}")
-                return model, test_response.text
+                extracted_response = extract_response_content(test_response.text)
+                print(f"✅ Научный Flash-Lite fallback: {extracted_response}")
+                return model, extracted_response
                 
         except Exception as e2:
             print(f"❌ Научный Flash-Lite fallback: {e2}")
@@ -518,7 +395,9 @@ def generate_science_commentary(model, top_3_news):
 - Как эти открытия изменят мир?
 - Какие новые возможности открываются?
 
-Пиши научно, но понятно. Фокусируйся на значимости открытий."""
+Пиши научно, но понятно. Фокусируйся на значимости открытий.
+
+Обязательно начни ответ с (RESPONSE) и закончи (CONFIDENCE)."""
     
     try:
         # Настройки для научного анализа
@@ -536,8 +415,10 @@ def generate_science_commentary(model, top_3_news):
         )
         
         if response and response.text:
-            print(f"✅ Анализ ТОП-3 готов ({len(response.text)} символов)")
-            return response.text, analysis_prompt
+            # Извлекаем содержимое между маркерами
+            extracted_commentary = extract_response_content(response.text)
+            print(f"✅ Анализ ТОП-3 готов ({len(extracted_commentary)} символов)")
+            return extracted_commentary, analysis_prompt
         else:
             return "Flash-Lite: ошибка генерации анализа ТОП-3", analysis_prompt
             
@@ -576,37 +457,6 @@ def clean_text_for_telegram(text):
             cleaned_lines.append(cleaned_line)
     
     return '\n'.join(cleaned_lines)
-
-def test_telegram_connection(bot_token, channel_id):
-    """Проверяет подключение к Telegram и отправляет тестовое сообщение"""
-    try:
-        print(f"📱 Тестируем Telegram: бот + канал {channel_id}")
-        
-        url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-        payload = {
-            'chat_id': channel_id,
-            'text': '🧪 Тестовое сообщение от научного бота\n\nЕсли вы видите это - всё работает!',
-            'disable_web_page_preview': True
-        }
-        
-        response = requests.post(url, json=payload, timeout=15)
-        
-        if response.status_code == 200:
-            result = response.json()
-            if result['ok']:
-                print(f"✅ Тестовое сообщение отправлено!")
-                return True
-            else:
-                print(f"❌ Ошибка отправки: {result}")
-                return False
-        else:
-            print(f"❌ HTTP ошибка: {response.status_code}")
-            print(f"📄 Ответ: {response.text}")
-            return False
-            
-    except Exception as e:
-        print(f"❌ Ошибка тестирования: {e}")
-        return False
 
 def send_to_telegram(bot_token, channel_id, text):
     """Отправляет сообщение в Telegram канал"""
@@ -815,83 +665,15 @@ def main():
         if not telegram_bot_token:
             print("❌ Нет TELEGRAM_BOT_TOKEN")
             return False
+            
+        if not telegram_channel_id:
+            print("❌ Нет TELEGRAM_CHANNEL_ID")
+            return False
         
         print(f"✅ Gemini API: {gemini_api_key[:10]}...")
         print(f"✅ Telegram Bot Token: {telegram_bot_token[:10]}...")
+        print(f"✅ Telegram Channel ID: {telegram_channel_id}")
         
-        # Проверяем токен бота
-        is_valid, bot_info = validate_bot_token(telegram_bot_token)
-        if not is_valid:
-            print("❌ НЕВЕРНЫЙ ТОКЕН БОТА!")
-            print("💡 Создайте нового бота через @BotFather")
-            return False
-        
-        bot_username = bot_info.get('username', 'unknown')
-        print(f"✅ Бот @{bot_username} работает!")
-        
-        # НОВАЯ ЛОГИКА ПОЛУЧЕНИЯ CHAT ID
-        working_chat_id = None
-        
-        # 1. Проверяем существующий ID (если есть)
-        if telegram_channel_id:
-            print(f"🔍 Проверяем существующий ID: {telegram_channel_id}")
-            if test_telegram_connection(telegram_bot_token, telegram_channel_id):
-                working_chat_id = telegram_channel_id
-                print(f"✅ Существующий ID работает: {telegram_channel_id}")
-            else:
-                print(f"❌ Существующий ID не работает: {telegram_channel_id}")
-        
-        # 2. Если ID не работает, ищем в обновлениях
-        if not working_chat_id:
-            print("🔍 Ищем Chat ID в истории сообщений...")
-            found_id = force_get_chat_id(telegram_bot_token)
-            
-            if found_id:
-                print(f"🎯 Найден ID в истории: {found_id}")
-                if test_telegram_connection(telegram_bot_token, found_id):
-                    working_chat_id = found_id
-                    print(f"✅ ID из истории работает: {found_id}")
-                else:
-                    print(f"❌ ID из истории не работает: {found_id}")
-        
-        # 3. Если всё ещё нет ID, ждем новое сообщение
-        if not working_chat_id:
-            print("❌ Рабочий Chat ID не найден")
-            print(f"💡 ИНСТРУКЦИЯ:")
-            print(f"1. Откройте Telegram")
-            print(f"2. Найдите бота @{bot_username}")
-            print(f"3. Нажмите 'START' или напишите '/start'")
-            print(f"4. Напишите любое сообщение (например: 'привет')")
-            print(f"5. НЕ ЗАКРЫВАЙТЕ скрипт - он будет ждать!")
-            
-            print("⏳ Запускаем режим ожидания сообщения...")
-            waited_id = wait_for_user_message(telegram_bot_token, timeout_seconds=120)
-            
-            if waited_id:
-                print(f"🎉 Получен новый Chat ID: {waited_id}")
-                if test_telegram_connection(telegram_bot_token, waited_id):
-                    working_chat_id = waited_id
-                    print(f"✅ Новый ID работает: {waited_id}")
-                else:
-                    print(f"❌ Новый ID не работает: {waited_id}")
-            else:
-                print("❌ Сообщение не получено")
-                return False
-        
-        # 4. Если у нас есть рабочий ID
-        if not working_chat_id:
-            print("❌ НЕ УДАЛОСЬ ПОЛУЧИТЬ РАБОЧИЙ CHAT ID!")
-            print("💡 ПОПРОБУЙТЕ:")
-            print("1. Создать нового бота через @BotFather")
-            print("2. Обновить TELEGRAM_BOT_TOKEN")
-            print("3. Написать новому боту")
-            return False
-        
-        print(f"🎯 ИСПОЛЬЗУЕМ CHAT ID: {working_chat_id}")
-        print(f"💡 УСТАНОВИТЕ В GITHUB SECRETS:")
-        print(f"   TELEGRAM_CHANNEL_ID = {working_chat_id}")
-        
-        # Продолжаем с остальным кодом...
         genai.configure(api_key=gemini_api_key)
         
         facts = load_facts()
@@ -924,13 +706,10 @@ def main():
         
         telegram_text = format_for_telegram(commentary, top_3_news)
         
-        # Используем найденный working_chat_id
-        telegram_success = send_to_telegram(telegram_bot_token, working_chat_id, telegram_text)
+        telegram_success = send_to_telegram(telegram_bot_token, telegram_channel_id, telegram_text)
         
         if telegram_success:
             print("🎉 УСПЕХ! Анализ опубликован в Telegram!")
-            print(f"💡 НЕ ЗАБУДЬТЕ УСТАНОВИТЬ В GITHUB:")
-            print(f"   TELEGRAM_CHANNEL_ID = {working_chat_id}")
             return True
         else:
             print("❌ Ошибка публикации в Telegram")
