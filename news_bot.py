@@ -37,7 +37,6 @@ def load_facts():
 def extract_response_content(text):
     """Извлекает содержимое между (RESPONSE) и (CONFIDENCE)"""
     try:
-        # Ищем начало (RESPONSE)
         start_marker = "(RESPONSE)"
         end_marker = "(CONFIDENCE)"
         
@@ -46,10 +45,8 @@ def extract_response_content(text):
             print("⚠️ Маркер (RESPONSE) не найден, возвращаем полный текст")
             return text.strip()
         
-        # Начинаем после маркера (RESPONSE)
         start_index += len(start_marker)
         
-        # Ищем конец (CONFIDENCE)
         end_index = text.find(end_marker, start_index)
         if end_index == -1:
             print("⚠️ Маркер (CONFIDENCE) не найден, берем текст до конца")
@@ -90,7 +87,6 @@ def is_science_news(title, description):
     """Проверяет, является ли новость научной"""
     text = (title + " " + description).lower()
     
-    # Научные ключевые слова
     science_keywords = [
         'исследование', 'ученые', 'открытие', 'эксперимент', 'научный',
         'технология', 'разработка', 'инновация', 'лаборатория', 'университет',
@@ -107,7 +103,6 @@ def is_science_news(title, description):
         'telescope', 'research', 'study', 'discovery', 'experiment'
     ]
     
-    # Исключающие слова (политика, экономика, спорт)
     exclude_keywords = [
         'выборы', 'президент', 'парламент', 'дума', 'правительство', 'министр',
         'политик', 'партия', 'санкции', 'война', 'конфликт', 'протест',
@@ -116,13 +111,9 @@ def is_science_news(title, description):
         'олимпиада', 'чемпионат', 'матч', 'игра', 'команда', 'тренер'
     ]
     
-    # Проверяем наличие научных слов
     science_score = sum(1 for keyword in science_keywords if keyword in text)
-    
-    # Проверяем наличие исключающих слов
     exclude_score = sum(1 for keyword in exclude_keywords if keyword in text)
     
-    # Если есть научные слова и нет политических/экономических
     return science_score > 0 and exclude_score == 0
 
 def rank_science_news(news_list):
@@ -131,7 +122,6 @@ def rank_science_news(news_list):
         score = 0
         text = (news['title'] + " " + news['description']).lower()
         
-        # Высокоприоритетные темы
         high_priority = [
             'прорыв', 'революция', 'впервые', 'открытие', 'breakthrough',
             'искусственный интеллект', 'ии', 'нейросеть', 'машинное обучение',
@@ -142,13 +132,11 @@ def rank_science_news(news_list):
             'климат', 'глобальное потепление', 'экология'
         ]
         
-        # Средний приоритет
         medium_priority = [
             'исследование', 'эксперимент', 'тест', 'технология',
             'разработка', 'метод', 'система', 'устройство'
         ]
         
-        # Бонусы за ключевые слова
         for keyword in high_priority:
             if keyword in text:
                 score += 10
@@ -157,21 +145,18 @@ def rank_science_news(news_list):
             if keyword in text:
                 score += 5
         
-        # Бонус за свежесть (если источник авторитетный)
         if news['source'] in ['N+1', 'Naked Science']:
             score += 3
         
-        # Бонус за длину описания (более подробные новости)
         if len(news['description']) > 200:
             score += 2
         
         news['importance_score'] = score
     
-    # Сортируем по важности
     return sorted(news_list, key=lambda x: x['importance_score'], reverse=True)
 
 def get_top_science_news():
-    """Получает ТОП научные новости и возвращает самую важную"""
+    """Получает научные новости и возвращает самую важную"""
     print("🔬 Получаем научные новости...")
     all_science_news = []
     
@@ -215,7 +200,7 @@ def get_top_science_news():
                 
                 print(f"📰 Найдено {len(items)} новостей, фильтруем научные...")
                 
-                for item in items[:10]:  # Берём только первые 10 для анализа
+                for item in items[:10]:
                     try:
                         title = item.title.text.strip() if item.title else "Без заголовка"
                         description = ""
@@ -223,7 +208,6 @@ def get_top_science_news():
                             desc_soup = BeautifulSoup(item.description.text, 'html.parser')
                             description = desc_soup.get_text().strip()
                         
-                        # ФИЛЬТРАЦИЯ: только научные новости
                         if is_science_news(title, description):
                             link = item.link.text.strip() if item.link else ""
                             
@@ -246,10 +230,8 @@ def get_top_science_news():
     
     print(f"🔬 Всего научных новостей: {len(all_science_news)}")
     
-    # Ранжируем по важности
     ranked_news = rank_science_news(all_science_news)
     
-    # Берём самую важную новость (ТОП-1)
     if ranked_news:
         top_news = ranked_news[0]
         print(f"🏆 Выбрана ТОП новость: {top_news['title'][:80]}... (очки: {top_news['importance_score']})")
@@ -265,7 +247,6 @@ def initialize_science_flash_lite(facts):
     if not available_models:
         return None, "Нет моделей"
     
-    # ПРИОРИТЕТ: Gemini 2.0 Flash-Lite
     preferred_models = [
         'models/gemini-2.0-flash-lite',
         'models/gemini-2.0-flash-lite-exp',
@@ -288,7 +269,6 @@ def initialize_science_flash_lite(facts):
         print(f"⚠️ Используем для науки: {selected_model}")
     
     try:
-        # Системные инструкции для научного анализа
         system_instruction = f"""Ты - Alexey Turchin, эксперт по научным открытиям и технологиям. База знаний:
 
 {facts}
@@ -308,7 +288,6 @@ def initialize_science_flash_lite(facts):
             system_instruction=system_instruction
         )
         
-        # Настройки для Lite
         generation_config = genai.types.GenerationConfig(
             temperature=0.7,
             top_p=0.9,
@@ -322,7 +301,6 @@ def initialize_science_flash_lite(facts):
         )
         
         if test_response and test_response.text:
-            # Извлекаем содержимое между маркерами
             extracted_response = extract_response_content(test_response.text)
             print(f"✅ Научный Flash-Lite готов: {extracted_response}")
             return model, extracted_response
@@ -333,7 +311,6 @@ def initialize_science_flash_lite(facts):
     except Exception as e:
         print(f"❌ Ошибка научного Flash-Lite: {e}")
         
-        # Fallback
         try:
             print("🔬 Научный Flash-Lite fallback...")
             simple_system = "Ты - Alexey Turchin, эксперт по науке. Комментируй научные открытия. Всегда начинай с (RESPONSE) и заканчивай (CONFIDENCE)."
@@ -365,7 +342,6 @@ def generate_science_commentary(model, top_news):
     
     print("🔬 Flash-Lite анализирует научную новость...")
     
-    # Простой промпт для одной новости
     analysis_prompt = f"""Прокомментируй эту научную новость как эксперт:
 
 ЗАГОЛОВОК: {top_news['title']}
@@ -379,7 +355,6 @@ def generate_science_commentary(model, top_news):
 Обязательно начни с (RESPONSE) и закончи (CONFIDENCE)."""
     
     try:
-        # Настройки для научного анализа
         generation_config = genai.types.GenerationConfig(
             temperature=0.8,
             top_p=0.9,
@@ -394,10 +369,8 @@ def generate_science_commentary(model, top_news):
         )
         
         if response and response.text:
-            # Извлекаем содержимое между маркерами
             extracted_commentary = extract_response_content(response.text)
             print(f"✅ Комментарий готов ({len(extracted_commentary)} символов)")
-            print(f"🔍 Предварительный просмотр: {extracted_commentary[:100]}...")
             return extracted_commentary, analysis_prompt
         else:
             return "Flash-Lite: ошибка генерации комментария", analysis_prompt
@@ -408,10 +381,6 @@ def generate_science_commentary(model, top_news):
 
 def clean_text_for_telegram(text):
     """Очищает текст от проблематичных символов для Telegram"""
-    # Удаляем или заменяем проблематичные символы Markdown
-    problematic_chars = ['*', '_', '`', '[', ']', '(', ')', '~', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
-    
-    # Заменяем на безопасные альтернативы
     replacements = {
         '*': '•',
         '_': '-',
@@ -428,7 +397,6 @@ def clean_text_for_telegram(text):
         if char in cleaned_text:
             cleaned_text = cleaned_text.replace(char, replacement)
     
-    # Удаляем лишние пробелы и переносы
     lines = cleaned_text.split('\n')
     cleaned_lines = []
     for line in lines:
@@ -438,24 +406,19 @@ def clean_text_for_telegram(text):
     
     return '\n'.join(cleaned_lines)
 
-def send_to_telegram(bot_token, channel_id, text):
-    """Отправляет сообщение в Telegram канал"""
+def send_to_telegram_group(bot_token, group_id, text):
+    """Отправляет сообщение в Telegram группу"""
     try:
-        print(f"📱 Отправляем в Telegram канал {channel_id}...")
+        print(f"📱 Отправляем в Telegram группу {group_id}...")
         
-        # Очищаем текст от проблематичных символов
         clean_text = clean_text_for_telegram(text)
-        
-        # Telegram Bot API URL
         url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
         
-        # Разбиваем длинный текст на части (максимум 4000 символов для безопасности)
         max_length = 4000
         
         if len(clean_text) <= max_length:
-            # Отправляем как одно сообщение
             payload = {
-                'chat_id': channel_id,
+                'chat_id': group_id,
                 'text': clean_text,
                 'disable_web_page_preview': True
             }
@@ -467,17 +430,17 @@ def send_to_telegram(bot_token, channel_id, text):
             if response.status_code == 200:
                 result = response.json()
                 if result['ok']:
-                    print(f"✅ Сообщение отправлено в Telegram!")
+                    print(f"✅ Сообщение отправлено в Telegram группу!")
                     return True
                 else:
                     print(f"❌ Telegram API ошибка: {result}")
                     return False
             else:
                 print(f"❌ HTTP ошибка {response.status_code}")
+                print(f"📄 Ответ: {response.text}")
                 return False
         
         else:
-            # Разбиваем на части
             parts = []
             current_part = ""
             
@@ -494,10 +457,9 @@ def send_to_telegram(bot_token, channel_id, text):
             
             print(f"📤 Отправляем {len(parts)} частей...")
             
-            # Отправляем каждую часть
             for i, part in enumerate(parts, 1):
                 payload = {
-                    'chat_id': channel_id,
+                    'chat_id': group_id,
                     'text': f"Часть {i}/{len(parts)}\n\n{part}",
                     'disable_web_page_preview': True
                 }
@@ -508,7 +470,7 @@ def send_to_telegram(bot_token, channel_id, text):
                     result = response.json()
                     if result['ok']:
                         print(f"✅ Часть {i}/{len(parts)} отправлена")
-                        time.sleep(2)  # Задержка между сообщениями
+                        time.sleep(2)
                     else:
                         print(f"❌ Ошибка части {i}: {result}")
                         return False
@@ -524,26 +486,22 @@ def send_to_telegram(bot_token, channel_id, text):
         traceback.print_exc()
         return False
 
-def format_for_telegram(commentary, top_news):
-    """Форматирует комментарий для Telegram"""
+def format_for_telegram_group(commentary, top_news):
+    """Форматирует комментарий для Telegram группы"""
     now = datetime.now()
     date_formatted = now.strftime("%d.%m.%Y %H:%M")
     
-    # Заголовок с новым форматом
     telegram_text = f"💬 Комментарии от сайдлоада Alexey Turchin\n"
     telegram_text += f"📅 {date_formatted}\n\n"
     telegram_text += "═══════════════════\n\n"
     
-    # Комментарий от Alexey Turchin
     telegram_text += f"{commentary}\n\n"
     telegram_text += "═══════════════════\n\n"
     
-    # Исходная новость
     telegram_text += f"📰 ИСХОДНАЯ НОВОСТЬ:\n\n"
     telegram_text += f"🔬 {top_news['title']}\n\n"
     
     if top_news['description']:
-        # Ограничиваем описание
         desc = top_news['description']
         if len(desc) > 400:
             desc = desc[:400] + "..."
@@ -560,9 +518,8 @@ def format_for_telegram(commentary, top_news):
 
 def save_science_results(commentary, top_news, init_response, prompt):
     """Сохраняет результаты анализа научной новости в папку commentary"""
-    directory = 'commentary'  # Используем существующую папку
+    directory = 'commentary'
     
-    # Проверяем существование папки
     if not os.path.exists(directory):
         print(f"❌ Папка {directory} не существует!")
         return False
@@ -600,6 +557,7 @@ def save_science_results(commentary, top_news, init_response, prompt):
             f.write(f"Время: {date_formatted}\n")
             f.write("Автор: Alexey Turchin (сайдлоад)\n")
             f.write("Модель: Gemini 2.0 Flash-Lite\n")
+            f.write("Группа: Alexey & Alexey Turchin sideload news comments\n")
             f.write("Новостей: 1 (ТОП)\n")
             f.write(f"Длина комментария: {len(commentary)} символов\n")
             f.write(f"ID: {timestamp}\n")
@@ -617,12 +575,14 @@ def save_science_results(commentary, top_news, init_response, prompt):
 
 def main():
     try:
-        print("💬 === ALEXEY TURCHIN НАУЧНЫЙ КОММЕНТАТОР + TELEGRAM ===")
+        print("💬 === ALEXEY TURCHIN НАУЧНЫЙ КОММЕНТАТОР → TELEGRAM ГРУППА ===")
         
         # Проверяем API ключи
         gemini_api_key = os.getenv('GEMINI_API_KEY')
         telegram_bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
-        telegram_channel_id = os.getenv('TELEGRAM_CHANNEL_ID')
+        
+        # Используем фиксированный Chat ID группы
+        telegram_group_id = "-1002894291419"
         
         if not gemini_api_key:
             print("❌ Нет GEMINI_API_KEY")
@@ -631,14 +591,11 @@ def main():
         if not telegram_bot_token:
             print("❌ Нет TELEGRAM_BOT_TOKEN")
             return False
-            
-        if not telegram_channel_id:
-            print("❌ Нет TELEGRAM_CHANNEL_ID")
-            return False
         
         print(f"✅ Gemini API: {gemini_api_key[:10]}...")
         print(f"✅ Telegram Bot Token: {telegram_bot_token[:10]}...")
-        print(f"✅ Telegram Channel ID: {telegram_channel_id}")
+        print(f"🎯 Telegram Group ID: {telegram_group_id}")
+        print(f"👥 Группа: Alexey & Alexey Turchin sideload news comments")
         
         genai.configure(api_key=gemini_api_key)
         
@@ -670,15 +627,16 @@ def main():
         if not save_success:
             print("⚠️ Ошибка сохранения, но продолжаем...")
         
-        telegram_text = format_for_telegram(commentary, top_news)
+        telegram_text = format_for_telegram_group(commentary, top_news)
         
-        telegram_success = send_to_telegram(telegram_bot_token, telegram_channel_id, telegram_text)
+        telegram_success = send_to_telegram_group(telegram_bot_token, telegram_group_id, telegram_text)
         
         if telegram_success:
-            print("🎉 УСПЕХ! Комментарий Alexey Turchin опубликован в Telegram!")
+            print("🎉 УСПЕХ! Комментарий Alexey Turchin опубликован в Telegram группе!")
+            print("👥 Группа: Alexey & Alexey Turchin sideload news comments")
             return True
         else:
-            print("❌ Ошибка публикации в Telegram")
+            print("❌ Ошибка публикации в Telegram группе")
             return False
         
     except Exception as e:
