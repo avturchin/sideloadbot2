@@ -96,10 +96,11 @@ def get_available_models():
         return []
 
 def is_science_news(title, description):
-    """Проверяет, является ли новость научной"""
+    """Проверяет, является ли новость научной (русские и английские ключевые слова)"""
     text = (title + " " + description).lower()
     
     science_keywords = [
+        # Русские ключевые слова
         'исследование', 'ученые', 'открытие', 'эксперимент', 'научный',
         'технология', 'разработка', 'инновация', 'лаборатория', 'университет',
         'институт', 'наука', 'биология', 'физика', 'химия', 'медицина',
@@ -112,15 +113,37 @@ def is_science_news(title, description):
         'микробиология', 'экология', 'климат', 'окружающая среда',
         'энергия', 'солнечный', 'ветряной', 'батарея', 'аккумулятор',
         'спутник', 'зонд', 'марс', 'луна', 'планета', 'галактика',
-        'telescope', 'research', 'study', 'discovery', 'experiment'
+        # Английские ключевые слова
+        'research', 'study', 'discovery', 'experiment', 'scientific', 'science',
+        'technology', 'development', 'innovation', 'laboratory', 'university',
+        'institute', 'biology', 'physics', 'chemistry', 'medicine', 'medical',
+        'space', 'astronomy', 'genetics', 'dna', 'protein', 'virus',
+        'treatment', 'therapy', 'vaccine', 'drug', 'clinical', 'trial',
+        'neurons', 'brain', 'cognitive', 'artificial intelligence', 'ai',
+        'machine learning', 'algorithm', 'robot', 'quantum',
+        'material', 'nanotechnology', 'biotechnology', 'genetic engineering',
+        'stem cells', 'cancer', 'oncology', 'diagnosis', 'diagnostic',
+        'microbiology', 'ecology', 'climate', 'environment', 'environmental',
+        'energy', 'solar', 'wind', 'battery', 'renewable',
+        'satellite', 'probe', 'mars', 'moon', 'planet', 'galaxy',
+        'telescope', 'breakthrough', 'novel', 'findings', 'journal',
+        'published', 'peer-reviewed', 'researchers', 'scientists'
     ]
     
     exclude_keywords = [
+        # Русские исключения
         'выборы', 'президент', 'парламент', 'дума', 'правительство', 'министр',
         'политик', 'партия', 'санкции', 'война', 'конфликт', 'протест',
         'курс валют', 'рубль', 'доллар', 'нефть', 'газ', 'экономика',
         'инфляция', 'бюджет', 'налог', 'спорт', 'футбол', 'хоккей',
-        'олимпиада', 'чемпионат', 'матч', 'игра', 'команда', 'тренер'
+        'олимпиада', 'чемпионат', 'матч', 'игра', 'команда', 'тренер',
+        # Английские исключения
+        'election', 'president', 'parliament', 'government', 'minister',
+        'politician', 'party', 'sanctions', 'war', 'conflict', 'protest',
+        'currency', 'dollar', 'oil', 'gas', 'economy', 'economic',
+        'inflation', 'budget', 'tax', 'sport', 'football', 'soccer',
+        'olympics', 'championship', 'match', 'game', 'team', 'coach',
+        'celebrity', 'entertainment', 'movie', 'music', 'fashion'
     ]
     
     science_score = sum(1 for keyword in science_keywords if keyword in text)
@@ -135,18 +158,33 @@ def rank_science_news(news_list):
         text = (news['title'] + " " + news['description']).lower()
         
         high_priority = [
+            # Русские высокоприоритетные
             'прорыв', 'революция', 'впервые', 'открытие', 'breakthrough',
             'искусственный интеллект', 'ии', 'нейросеть', 'машинное обучение',
             'космос', 'марс', 'луна', 'спутник', 'телескоп',
             'рак', 'онкология', 'лечение', 'вакцина', 'генная терапия',
             'квантовый', 'квантовые вычисления', 'нанотехнологии',
             'стволовые клетки', 'регенерация', 'биотехнологии',
-            'климат', 'глобальное потепление', 'экология'
+            'климат', 'глобальное потепление', 'экология',
+            # Английские высокоприоритетные
+            'breakthrough', 'revolutionary', 'first time', 'discovery',
+            'artificial intelligence', 'ai', 'neural network', 'machine learning',
+            'space', 'mars', 'moon', 'satellite', 'telescope',
+            'cancer', 'oncology', 'treatment', 'vaccine', 'gene therapy',
+            'quantum', 'quantum computing', 'nanotechnology',
+            'stem cells', 'regeneration', 'biotechnology',
+            'climate change', 'global warming', 'ecology',
+            'crispr', 'genome editing', 'immunotherapy', 'precision medicine'
         ]
         
         medium_priority = [
+            # Русские среднеприоритетные
             'исследование', 'эксперимент', 'тест', 'технология',
-            'разработка', 'метод', 'система', 'устройство'
+            'разработка', 'метод', 'система', 'устройство',
+            # Английские среднеприоритетные
+            'research', 'study', 'experiment', 'test', 'technology',
+            'development', 'method', 'system', 'device', 'trial',
+            'findings', 'results', 'analysis', 'investigation'
         ]
         
         for keyword in high_priority:
@@ -157,7 +195,12 @@ def rank_science_news(news_list):
             if keyword in text:
                 score += 5
         
-        if news['source'] in ['N+1', 'Naked Science']:
+        # Бонусы за источники
+        if news['source'] in ['N+1', 'Naked Science', 'Nature', 'Science', 'ScienceDaily']:
+            score += 5
+        elif news['source'] in ['MIT Technology Review', 'New Scientist', 'Scientific American']:
+            score += 4
+        elif news['source'] in ['BBC Science', 'CNN Health', 'Reuters Science']:
             score += 3
         
         if len(news['description']) > 200:
@@ -187,6 +230,7 @@ def get_top_science_news():
     all_science_news = []
     
     sources = [
+        # Русские источники
         {
             'url': 'https://naked-science.ru/feed', 
             'name': 'Naked Science'
@@ -206,6 +250,43 @@ def get_top_science_news():
         {
             'url': 'https://lenta.ru/rss/news/science', 
             'name': 'Lenta.ru Наука'
+        },
+        # Английские источники
+        {
+            'url': 'https://www.sciencedaily.com/rss/all.xml', 
+            'name': 'ScienceDaily'
+        },
+        {
+            'url': 'https://feeds.nature.com/nature/rss/current', 
+            'name': 'Nature'
+        },
+        {
+            'url': 'https://www.science.org/rss/news_current.xml', 
+            'name': 'Science'
+        },
+        {
+            'url': 'https://www.technologyreview.com/feed/', 
+            'name': 'MIT Technology Review'
+        },
+        {
+            'url': 'https://www.newscientist.com/feed/home/', 
+            'name': 'New Scientist'
+        },
+        {
+            'url': 'https://rss.cnn.com/rss/cnn_health.rss', 
+            'name': 'CNN Health'
+        },
+        {
+            'url': 'https://feeds.bbci.co.uk/news/science_and_environment/rss.xml', 
+            'name': 'BBC Science'
+        },
+        {
+            'url': 'https://www.reuters.com/arc/outboundfeeds/rss/category/health/?outputType=xml', 
+            'name': 'Reuters Science'
+        },
+        {
+            'url': 'https://rss.sciam.com/ScientificAmerican-Global', 
+            'name': 'Scientific American'
         }
     ]
     
@@ -267,10 +348,10 @@ def get_top_science_news():
         top_5_news = ranked_news[:5]
         print(f"🏆 ТОП-5 новостей:")
         for i, news in enumerate(top_5_news, 1):
-            print(f"   {i}. {news['title'][:60]}... (очки: {news['importance_score']})")
+            print(f"   {i}. {news['title'][:60]}... (очки: {news['importance_score']}) - {news['source']}")
         
         selected_news = random.choice(top_5_news)
-        print(f"🎲 СЛУЧАЙНО ВЫБРАНА: {selected_news['title'][:80]}... (очки: {selected_news['importance_score']})")
+        print(f"🎲 СЛУЧАЙНО ВЫБРАНА: {selected_news['title'][:80]}... (очки: {selected_news['importance_score']}) - {selected_news['source']}")
         return selected_news
     else:
         print("❌ Научные новости не найдены")
@@ -311,6 +392,11 @@ def initialize_gemini_2_0_flash_once(facts):
 {facts}
 
 Анализируй научные открытия через призму трансгуманизма, футурологии и их влияние на продление жизни человека. Пиши глубокие экспертные комментарии с философской точки зрения.
+
+ВАЖНЫЕ ПРАВИЛА:
+- Если новость на английском языке, переведи её суть и анализируй на русском языке
+- Всегда отвечай на русском языке как Alexey Turchin
+- Анализируй как русские, так и международные научные открытия
 
 ВАЖНОЕ ПРАВИЛО ФОРМАТИРОВАНИЯ: 
 - Начинай ответ с (RESPONSE)
@@ -399,7 +485,7 @@ def generate_science_commentary(model, selected_news):
 - Связь с трансгуманистическими трендами
 - Значимость для будущего человечества
 
-ВАЖНО: Строго соблюдай формат и ЗАВЕРШАЙ мысль!
+ВАЖНО: Строго соблюдай формат и ЗАВЕРШАЙ мысль! Отвечай на русском языке.
 (RESPONSE)
 [полный экспертный комментарий как Alexey Turchin]
 (CONFIDENCE)"""
@@ -411,7 +497,7 @@ def generate_science_commentary(model, selected_news):
         generation_config = genai.types.GenerationConfig(
             temperature=0.8,
             top_p=0.95,
-            max_output_tokens=1200,  # ⬆️ УВЕЛИЧЕНО с 800 до 1200
+            max_output_tokens=1200,
         )
         
         safety_settings = [
@@ -465,10 +551,10 @@ def generate_science_commentary(model, selected_news):
                         continuation_config = genai.types.GenerationConfig(
                             temperature=0.8,
                             top_p=0.95,
-                            max_output_tokens=300,  # Короткое дополнение
+                            max_output_tokens=300,
                         )
                         
-                        time.sleep(2)  # Пауза между запросами
+                        time.sleep(2)
                         
                         try:
                             continuation_response = model.generate_content(
@@ -616,7 +702,8 @@ def format_for_telegram_group(commentary, selected_news):
     
     telegram_text = f"💬 Комментарии от сайдлоада Alexey Turchin\n"
     telegram_text += f"📅 {date_formatted}\n"
-    telegram_text += f"⚡ Анализ от Gemini 2.0 Flash\n\n"
+    telegram_text += f"⚡ Анализ от Gemini 2.0 Flash\n"
+    telegram_text += f"🌍 Источник: {selected_news['source']}\n\n"
     telegram_text += "═══════════════════\n\n"
     
     telegram_text += f"{commentary}\n\n"
@@ -685,7 +772,7 @@ def save_science_results(commentary, selected_news, init_response, prompt):
             f.write("Новостей: 1 (случайная из ТОП-5)\n")
             f.write(f"Длина комментария: {len(commentary)} символов\n")
             f.write(f"ID: {timestamp}\n")
-            f.write(f"Новость: {selected_news['importance_score']} очков - {selected_news['title'][:50]}...\n")
+            f.write(f"Новость: {selected_news['importance_score']} очков - {selected_news['title'][:50]}... - {selected_news['source']}\n")
         
         print(f"✅ Комментарий 2.0 Flash сохранён в: {main_filename}")
         print(f"📊 Статистика: {stats_filename}")
@@ -700,6 +787,7 @@ def save_science_results(commentary, selected_news, init_response, prompt):
 def main():
     try:
         print("⚡ === ALEXEY TURCHIN GEMINI 2.0 FLASH КОММЕНТАТОР → TELEGRAM ГРУППА ===")
+        print("🌍 Источники: Русские + Английские научные новости")
         
         # Проверяем API ключи
         gemini_api_key = os.getenv('GEMINI_API_KEY')
@@ -760,7 +848,7 @@ def main():
         if telegram_success:
             print("🎉 УСПЕХ! Комментарий Alexey Turchin (Gemini 2.0 Flash) опубликован!")
             print("👥 Группа: Alexey & Alexey Turchin sideload news comments")
-            print(f"🎲 Новость: {selected_news['title'][:60]}...")
+            print(f"🎲 Новость: {selected_news['title'][:60]}... - {selected_news['source']}")
             return True
         else:
             print("❌ Ошибка публикации в Telegram группе")
