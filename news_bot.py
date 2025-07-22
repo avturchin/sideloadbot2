@@ -6,6 +6,7 @@ from datetime import datetime
 import time
 import traceback
 import sys
+import json
 
 def load_facts():
     """Загружает Facts.txt БЕЗ обрезания"""
@@ -386,27 +387,66 @@ def generate_science_commentary(model, top_3_news):
         print(f"❌ Ошибка анализа ТОП-3 Flash-Lite: {e}")
         return f"Научный Flash-Lite ошибка: {e}", analysis_prompt
 
+def clean_text_for_telegram(text):
+    """Очищает текст от проблематичных символов для Telegram"""
+    # Удаляем или заменяем проблематичные символы Markdown
+    problematic_chars = ['*', '_', '`', '[', ']', '(', ')', '~', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
+    
+    # Заменяем на безопасные альтернативы
+    replacements = {
+        '*': '•',
+        '_': '-',
+        '`': "'",
+        '[': '(',
+        ']': ')',
+        '~': '-',
+        '#': '№',
+        '|': '/',
+    }
+    
+    cleaned_text = text
+    for char, replacement in replacements.items():
+        if char in cleaned_text:
+            cleaned_text = cleaned_text.replace(char, replacement)
+    
+    # Удаляем лишние пробелы и переносы
+    lines = cleaned_text.split('\n')
+    cleaned_lines = []
+    for line in lines:
+        cleaned_line = line.strip()
+        if cleaned_line:
+            cleaned_lines.append(cleaned_line)
+    
+    return '\n'.join(cleaned_lines)
+
 def send_to_telegram(bot_token, channel_id, text):
     """Отправляет сообщение в Telegram канал"""
     try:
         print(f"📱 Отправляем в Telegram канал {channel_id}...")
         
+        # Очищаем текст от проблематичных символов
+        clean_text = clean_text_for_telegram(text)
+        
         # Telegram Bot API URL
         url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
         
-        # Разбиваем длинный текст на части (максимум 4096 символов)
-        max_length = 4096
+        # Разбиваем длинный текст на части (максимум 4000 символов для безопасности)
+        max_length = 4000
         
-        if len(text) <= max_length:
+        if len(clean_text) <= max_length:
             # Отправляем как одно сообщение
             payload = {
                 'chat_id': channel_id,
-                'text': text,
-                'parse_mode': 'Markdown',
+                'text': clean_text,
                 'disable_web_page_preview': True
             }
             
+            print(f"📤 Отправляем сообщение ({len(clean_text)} символов)...")
+            print(f"🔍 Первые 200 символов: {clean_text[:200]}...")
+            
             response = requests.post(url, json=payload, timeout=30)
+            
+            print(f"📊 HTTP Status: {response.status_code}")
             
             if response.status_code == 200:
                 result = response.json()
@@ -417,7 +457,12 @@ def send_to_telegram(bot_token, channel_id, text):
                     print(f"❌ Telegram API ошибка: {result}")
                     return False
             else:
-                print(f"❌ HTTP ошибка {response.status_code}: {response.text}")
+                print(f"❌ HTTP ошибка {response.status_code}")
+                try:
+                    error_data = response.json()
+                    print(f"📄 Детали ошибки: {error_data}")
+                except:
+                    print(f"📄 Ответ сервера: {response.text}")
                 return False
         
         else:
@@ -425,7 +470,7 @@ def send_to_telegram(bot_token, channel_id, text):
             parts = []
             current_part = ""
             
-            for line in text.split('\n'):
+            for line in clean_text.split('\n'):
                 if len(current_part) + len(line) + 1 <= max_length:
                     current_part += line + '\n'
                 else:
@@ -442,23 +487,31 @@ def send_to_telegram(bot_token, channel_id, text):
             for i, part in enumerate(parts, 1):
                 payload = {
                     'chat_id': channel_id,
-                    'text': f"**Часть {i}/{len(parts)}**\n\n{part}",
-                    'parse_mode': 'Markdown',
+                    'text': f"Часть {i}/{len(parts)}\n\n{part}",
                     'disable_web_page_preview': True
                 }
                 
+                print(f"📤 Отправляем часть {i}/{len(parts)} ({len(part)} символов)...")
+                
                 response = requests.post(url, json=payload, timeout=30)
+                
+                print(f"📊 HTTP Status части {i}: {response.status_code}")
                 
                 if response.status_code == 200:
                     result = response.json()
                     if result['ok']:
                         print(f"✅ Часть {i}/{len(parts)} отправлена")
-                        time.sleep(1)  # Задержка между сообщениями
+                        time.sleep(2)  # Задержка между сообщениями
                     else:
                         print(f"❌ Ошибка части {i}: {result}")
                         return False
                 else:
                     print(f"❌ HTTP ошибка части {i}: {response.status_code}")
+                    try:
+                        error_data = response.json()
+                        print(f"📄 Детали ошибки части {i}: {error_data}")
+                    except:
+                        print(f"📄 Ответ сервера части {i}: {response.text}")
                     return False
             
             print(f"✅ Все {len(parts)} частей отправлены!")
@@ -470,27 +523,27 @@ def send_to_telegram(bot_token, channel_id, text):
         return False
 
 def format_for_telegram(commentary, top_3_news):
-    """Форматирует анализ для Telegram"""
+    """Форматирует анализ для Telegram (простой текст без Markdown)"""
     now = datetime.now()
     date_formatted = now.strftime("%d.%m.%Y %H:%M")
     
     # Заголовок
-    telegram_text = f"🔬 **ТОП-3 Научные Открытия**\n"
+    telegram_text = f"🔬 ТОП-3 Научные Открытия\n"
     telegram_text += f"📅 {date_formatted}\n"
     telegram_text += f"🤖 Анализ от Gemini 2.0 Flash-Lite\n\n"
-    telegram_text += "═══════════════════════\n\n"
+    telegram_text += "═════════════════════\n\n"
     
     # Анализ от ИИ
-    telegram_text += f"**📊 ЭКСПЕРТНЫЙ АНАЛИЗ:**\n\n"
+    telegram_text += f"📊 ЭКСПЕРТНЫЙ АНАЛИЗ:\n\n"
     telegram_text += f"{commentary}\n\n"
-    telegram_text += "═══════════════════════\n\n"
+    telegram_text += "═════════════════════\n\n"
     
     # ТОП-3 новости
-    telegram_text += f"**🏆 ТОП-3 НАУЧНЫЕ НОВОСТИ:**\n\n"
+    telegram_text += f"🏆 ТОП-3 НАУЧНЫЕ НОВОСТИ:\n\n"
     
     for i, item in enumerate(top_3_news, 1):
         medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉"
-        telegram_text += f"**{medal} {i}. {item['title']}**\n"
+        telegram_text += f"{medal} {i}. {item['title']}\n"
         telegram_text += f"⭐ Важность: {item['importance_score']} очков\n\n"
         
         if item['description']:
@@ -503,9 +556,9 @@ def format_for_telegram(commentary, top_3_news):
         telegram_text += f"📰 Источник: {item['source']}\n"
         
         if item['link']:
-            telegram_text += f"🔗 [Читать полностью]({item['link']})\n"
+            telegram_text += f"🔗 Ссылка: {item['link']}\n"
         
-        telegram_text += "\n───────────────────────\n\n"
+        telegram_text += "\n───────────────────\n\n"
     
     # Подпись
     telegram_text += "🤖 Автоматический анализ научных новостей\n"
@@ -514,13 +567,15 @@ def format_for_telegram(commentary, top_3_news):
     return telegram_text
 
 def save_science_results(commentary, top_3_news, init_response, prompt):
-    """Сохраняет результаты анализа ТОП-3 научных новостей в папку commentary6"""
-    directory = 'commentary6'
+    """Сохраняет результаты анализа ТОП-3 научных новостей в папку commentary"""
+    directory = 'commentary'  # Используем существующую папку
     
     # Проверяем существование папки
     if not os.path.exists(directory):
-        os.makedirs(directory, exist_ok=True)
-        print(f"✅ Папка {directory} создана")
+        print(f"❌ Папка {directory} не существует!")
+        return False
+    
+    print(f"📁 Используем существующую папку: {directory}")
     
     now = datetime.now()
     timestamp = now.strftime("%Y-%m-%d_%H-%M-%S") + f"-{now.microsecond}"
@@ -568,7 +623,7 @@ def save_science_results(commentary, top_3_news, init_response, prompt):
         return True
         
     except Exception as e:
-        print(f"❌ Ошибка сохранения в commentary6: {e}")
+        print(f"❌ Ошибка сохранения в {directory}: {e}")
         traceback.print_exc()
         return False
 
@@ -626,7 +681,7 @@ def main():
             print("❌ Flash-Lite не создал анализ ТОП-3")
             return False
         
-        # Сохранение в папку commentary6
+        # Сохранение в папку commentary
         save_success = save_science_results(commentary, top_3_news, init_response, prompt)
         if not save_success:
             print("⚠️ Ошибка сохранения, но продолжаем...")
