@@ -10,6 +10,68 @@ import json
 import random
 import hashlib
 
+def check_environment():
+    """Проверяет рабочую среду и права доступа"""
+    print("🔍 === ДИАГНОСТИКА СРЕДЫ ВЫПОЛНЕНИЯ ===")
+    
+    # Проверяем текущую директорию
+    current_dir = os.getcwd()
+    print(f"📂 Текущая директория: {current_dir}")
+    
+    # Проверяем права на запись
+    try:
+        test_file = "test_write_permissions.tmp"
+        with open(test_file, 'w') as f:
+            f.write("test")
+        os.remove(test_file)
+        print("✅ Права на запись в текущую директорию: ДА")
+    except Exception as e:
+        print(f"❌ Права на запись в текущую директорию: НЕТ - {e}")
+        return False
+    
+    # Проверяем содержимое текущей директории
+    try:
+        files = os.listdir('.')
+        print(f"📋 Файлы в текущей директории ({len(files)} шт.):")
+        for f in sorted(files)[:10]:  # Показываем первые 10
+            if os.path.isfile(f):
+                size = os.path.getsize(f)
+                print(f"   📄 {f} ({size} байт)")
+            else:
+                print(f"   📁 {f}/")
+        if len(files) > 10:
+            print(f"   ... и ещё {len(files) - 10} файлов/папок")
+    except Exception as e:
+        print(f"❌ Ошибка чтения директории: {e}")
+    
+    # Проверяем наличие папки commentary
+    commentary_exists = os.path.exists('commentary')
+    print(f"📁 Папка commentary существует: {commentary_exists}")
+    
+    if commentary_exists:
+        try:
+            commentary_files = os.listdir('commentary')
+            print(f"📋 Файлов в commentary: {len(commentary_files)}")
+            for f in sorted(commentary_files)[:5]:
+                size = os.path.getsize(os.path.join('commentary', f))
+                print(f"   📄 {f} ({size} байт)")
+        except Exception as e:
+            print(f"❌ Ошибка чтения папки commentary: {e}")
+    
+    # Проверяем наличие processed_news.json
+    processed_exists = os.path.exists('processed_news.json')
+    print(f"📄 Файл processed_news.json существует: {processed_exists}")
+    
+    if processed_exists:
+        try:
+            size = os.path.getsize('processed_news.json')
+            print(f"📊 Размер processed_news.json: {size} байт")
+        except Exception as e:
+            print(f"❌ Ошибка чтения processed_news.json: {e}")
+    
+    print("🔍 === КОНЕЦ ДИАГНОСТИКИ ===\n")
+    return True
+
 def load_facts():
     """Загружает Facts.txt БЕЗ обрезания"""
     try:
@@ -36,11 +98,55 @@ def load_facts():
         traceback.print_exc()
         return ""
 
+def ensure_directory_exists(directory):
+    """Принудительно создаёт директорию с проверками"""
+    print(f"📁 Проверяем директорию: {directory}")
+    
+    abs_path = os.path.abspath(directory)
+    print(f"📂 Абсолютный путь: {abs_path}")
+    
+    if os.path.exists(directory):
+        if os.path.isdir(directory):
+            print(f"✅ Директория {directory} уже существует")
+            return True
+        else:
+            print(f"❌ {directory} существует, но это не директория!")
+            return False
+    
+    try:
+        os.makedirs(directory, exist_ok=True)
+        print(f"✅ Директория {directory} создана")
+        
+        # Проверяем что директория действительно создалась
+        if os.path.exists(directory) and os.path.isdir(directory):
+            print(f"✅ Проверка: директория {directory} доступна")
+            
+            # Проверяем права на запись в директорию
+            test_file = os.path.join(directory, 'test_write.tmp')
+            try:
+                with open(test_file, 'w') as f:
+                    f.write('test')
+                os.remove(test_file)
+                print(f"✅ Права на запись в {directory}: ДА")
+                return True
+            except Exception as write_e:
+                print(f"❌ Права на запись в {directory}: НЕТ - {write_e}")
+                return False
+        else:
+            print(f"❌ Директория {directory} не была создана!")
+            return False
+            
+    except Exception as e:
+        print(f"❌ Ошибка создания директории {directory}: {e}")
+        traceback.print_exc()
+        return False
+
 def load_processed_news():
     """Загружает список уже обработанных новостей"""
     processed_file = 'processed_news.json'
     
     print(f"📚 Проверяем файл обработанных новостей: {processed_file}")
+    print(f"📂 Абсолютный путь: {os.path.abspath(processed_file)}")
     
     if not os.path.exists(processed_file):
         print(f"📝 Файл {processed_file} не найден, создаём новый пустой список...")
@@ -48,12 +154,25 @@ def load_processed_news():
         try:
             with open(processed_file, 'w', encoding='utf-8') as f:
                 json.dump(empty_data, f, ensure_ascii=False, indent=2)
-            print(f"✅ Создан пустой файл {processed_file}")
+            
+            # Проверяем что файл действительно создался
+            if os.path.exists(processed_file):
+                file_size = os.path.getsize(processed_file)
+                print(f"✅ Создан пустой файл {processed_file} ({file_size} байт)")
+                return empty_data
+            else:
+                print(f"❌ Файл {processed_file} не был создан!")
+                return {}
+                
         except Exception as e:
             print(f"❌ Ошибка создания {processed_file}: {e}")
-        return empty_data
+            traceback.print_exc()
+            return {}
     
     try:
+        file_size = os.path.getsize(processed_file)
+        print(f"📊 Размер файла {processed_file}: {file_size} байт")
+        
         with open(processed_file, 'r', encoding='utf-8') as f:
             processed = json.load(f)
         print(f"📚 Загружено {len(processed)} обработанных новостей из {processed_file}")
@@ -68,14 +187,18 @@ def load_processed_news():
         return processed
     except Exception as e:
         print(f"❌ Ошибка загрузки {processed_file}: {e}")
+        traceback.print_exc()
         print("📝 Создаём новый пустой список...")
         return {}
 
 def save_processed_news(processed_news):
-    """Сохраняет список обработанных новостей с детальным логированием"""
+    """Сохраняет список обработанных новостей с максимальной диагностикой"""
     processed_file = 'processed_news.json'
+    abs_path = os.path.abspath(processed_file)
     
-    print(f"💾 Сохраняем {len(processed_news)} обработанных новостей в {processed_file}...")
+    print(f"💾 === СОХРАНЕНИЕ {processed_file} ===")
+    print(f"📂 Абсолютный путь: {abs_path}")
+    print(f"📊 Количество записей: {len(processed_news)}")
     
     try:
         # Создаём резервную копию если файл существует
@@ -90,29 +213,57 @@ def save_processed_news(processed_news):
                 print(f"⚠️ Не удалось создать резервную копию: {backup_e}")
         
         # Сохраняем основной файл
+        print(f"💾 Записываем данные в {processed_file}...")
         with open(processed_file, 'w', encoding='utf-8') as f:
             json.dump(processed_news, f, ensure_ascii=False, indent=2)
+        print(f"✅ Данные записаны в файл")
         
-        # Проверяем что файл сохранился
+        # Принудительная синхронизация диска
+        try:
+            import os
+            os.sync() if hasattr(os, 'sync') else None
+            print(f"💾 Синхронизация диска выполнена")
+        except:
+            pass
+        
+        # Детальная проверка созданного файла
         if os.path.exists(processed_file):
             file_size = os.path.getsize(processed_file)
-            print(f"✅ Файл {processed_file} сохранён успешно ({file_size} байт)")
+            print(f"✅ Файл {processed_file} существует ({file_size} байт)")
             
             # Проверяем содержимое
             try:
                 with open(processed_file, 'r', encoding='utf-8') as f:
                     check_data = json.load(f)
-                print(f"✅ Проверка: в файле {len(check_data)} записей")
+                print(f"✅ Проверка содержимого: {len(check_data)} записей")
+                
+                # Показываем последнюю запись
+                if check_data:
+                    last_key = list(check_data.keys())[-1]
+                    last_entry = check_data[last_key]
+                    print(f"🔍 Последняя запись: {last_entry['date']} - {last_entry['title'][:30]}...")
+                
+                print(f"🎉 ФАЙЛ {processed_file} УСПЕШНО СОХРАНЁН!")
                 return True
+                
             except Exception as check_e:
-                print(f"❌ Ошибка проверки файла: {check_e}")
+                print(f"❌ Ошибка проверки содержимого: {check_e}")
                 return False
         else:
-            print(f"❌ Файл {processed_file} не был создан!")
+            print(f"❌ КРИТИЧЕСКАЯ ОШИБКА: Файл {processed_file} НЕ СУЩЕСТВУЕТ после записи!")
+            
+            # Дополнительная диагностика
+            current_files = os.listdir('.')
+            print(f"📋 Файлы в текущей директории после записи:")
+            for f in sorted(current_files):
+                if f.endswith('.json'):
+                    size = os.path.getsize(f) if os.path.exists(f) else 0
+                    print(f"   📄 {f} ({size} байт)")
+            
             return False
             
     except Exception as e:
-        print(f"❌ Ошибка сохранения {processed_file}: {e}")
+        print(f"❌ КРИТИЧЕСКАЯ ОШИБКА сохранения {processed_file}: {e}")
         traceback.print_exc()
         return False
 
@@ -911,21 +1062,15 @@ def create_safe_filename(title, source, timestamp):
     return filename
 
 def save_science_results(commentary, selected_news, init_response, prompt):
-    """Сохраняет результаты анализа научной новости в папку commentary"""
+    """Сохраняет результаты анализа научной новости в папку commentary с максимальной диагностикой"""
     directory = 'commentary'
     
-    print(f"📁 Проверяем папку: {directory}")
+    print(f"💾 === СОХРАНЕНИЕ ФАЙЛОВ В {directory} ===")
     
-    if not os.path.exists(directory):
-        print(f"📁 Создаём папку: {directory}")
-        try:
-            os.makedirs(directory)
-            print(f"✅ Папка {directory} создана успешно")
-        except Exception as e:
-            print(f"❌ Ошибка создания папки {directory}: {e}")
-            return False
-    else:
-        print(f"✅ Папка {directory} уже существует")
+    # Принудительное создание директории
+    if not ensure_directory_exists(directory):
+        print(f"❌ КРИТИЧЕСКАЯ ОШИБКА: Не удалось создать директорию {directory}")
+        return False
     
     now = datetime.now()
     timestamp = now.strftime("%Y%m%d_%H%M%S")
@@ -935,19 +1080,20 @@ def save_science_results(commentary, selected_news, init_response, prompt):
         # Создаём безопасное имя файла
         safe_filename = create_safe_filename(selected_news['title'], selected_news['source'], timestamp)
         
-        print(f"📝 Создаём файлы с базовым именем: {safe_filename}")
+        print(f"📝 Базовое имя файла: {safe_filename}")
         
-        # Markdown файл
+        # Определяем пути к файлам
         main_filename = os.path.join(directory, f'{safe_filename}_turchin_flash20.md')
-        
-        # Текстовый файл (простой формат)
         txt_filename = os.path.join(directory, f'{safe_filename}_turchin_flash20.txt')
+        stats_filename = os.path.join(directory, f'{safe_filename}_stats.txt')
         
-        print(f"💾 Сохраняем файлы:")
-        print(f"   📄 Markdown: {main_filename}")
-        print(f"   📄 Текст: {txt_filename}")
+        print(f"📄 Файлы для создания:")
+        print(f"   🔗 {main_filename}")
+        print(f"   🔗 {txt_filename}")
+        print(f"   🔗 {stats_filename}")
         
         # Сохраняем Markdown файл
+        print(f"💾 Создаём Markdown файл...")
         with open(main_filename, 'w', encoding='utf-8') as f:
             f.write(f"# 💬 Комментарии от Alexey Turchin (Gemini 2.0 Flash)\n")
             f.write(f"## {date_formatted}\n\n")
@@ -965,7 +1111,15 @@ def save_science_results(commentary, selected_news, init_response, prompt):
             f.write("## 💬 Комментарий Alexey Turchin:\n\n")
             f.write(f"{commentary}\n\n")
         
+        # Принудительная синхронизация
+        try:
+            import os
+            os.sync() if hasattr(os, 'sync') else None
+        except:
+            pass
+        
         # Сохраняем простой текстовый файл
+        print(f"💾 Создаём текстовый файл...")
         with open(txt_filename, 'w', encoding='utf-8') as f:
             f.write(f"КОММЕНТАРИИ ОТ ALEXEY TURCHIN (GEMINI 2.0 FLASH)\n")
             f.write(f"Дата: {date_formatted}\n")
@@ -983,8 +1137,8 @@ def save_science_results(commentary, selected_news, init_response, prompt):
             f.write(f"{commentary}\n\n")
             f.write("=" * 50 + "\n")
         
-        # Статистика
-        stats_filename = os.path.join(directory, f'{safe_filename}_stats.txt')
+        # Сохраняем статистику
+        print(f"💾 Создаём файл статистики...")
         with open(stats_filename, 'w', encoding='utf-8') as f:
             f.write("=== ALEXEY TURCHIN GEMINI 2.0 FLASH КОММЕНТАРИЙ ===\n")
             f.write(f"Время: {date_formatted}\n")
@@ -997,25 +1151,47 @@ def save_science_results(commentary, selected_news, init_response, prompt):
             f.write(f"Новость: {selected_news['importance_score']} очков - {selected_news['title'][:50]}... - {selected_news['source']}\n")
             f.write(f"Хеш новости: {generate_news_hash(selected_news['title'], selected_news['description'])}\n")
         
-        # Проверяем что файлы действительно созданы
+        # Принудительная синхронизация снова
+        try:
+            import os
+            os.sync() if hasattr(os, 'sync') else None
+        except:
+            pass
+        
+        # ДЕТАЛЬНАЯ проверка созданных файлов
+        print(f"🔍 Проверяем созданные файлы...")
         created_files = []
-        for filename in [main_filename, txt_filename, stats_filename]:
+        all_files = [main_filename, txt_filename, stats_filename]
+        
+        for filename in all_files:
             if os.path.exists(filename):
                 file_size = os.path.getsize(filename)
-                created_files.append(f"{filename} ({file_size} байт)")
-                print(f"✅ Создан: {filename} ({file_size} байт)")
+                created_files.append(filename)
+                print(f"✅ СОЗДАН: {filename} ({file_size} байт)")
             else:
-                print(f"❌ НЕ создан: {filename}")
+                print(f"❌ НЕ СОЗДАН: {filename}")
+        
+        # Дополнительная проверка содержимого директории
+        try:
+            dir_contents = os.listdir(directory)
+            print(f"📋 Содержимое папки {directory} ({len(dir_contents)} файлов):")
+            for f in sorted(dir_contents):
+                if f.startswith(timestamp):
+                    full_path = os.path.join(directory, f)
+                    size = os.path.getsize(full_path)
+                    print(f"   📄 {f} ({size} байт)")
+        except Exception as dir_e:
+            print(f"❌ Ошибка чтения директории {directory}: {dir_e}")
         
         if len(created_files) == 3:
-            print(f"🎉 ВСЕ ФАЙЛЫ УСПЕШНО СОХРАНЕНЫ!")
+            print(f"🎉 ВСЕ {len(created_files)} ФАЙЛОВ УСПЕШНО СОЗДАНЫ!")
             return True
         else:
-            print(f"⚠️ Сохранено только {len(created_files)} из 3 файлов")
+            print(f"⚠️ СОЗДАНО ТОЛЬКО {len(created_files)} ИЗ 3 ФАЙЛОВ!")
             return False
         
     except Exception as e:
-        print(f"❌ Ошибка сохранения в {directory}: {e}")
+        print(f"❌ КРИТИЧЕСКАЯ ОШИБКА сохранения в {directory}: {e}")
         traceback.print_exc()
         return False
 
@@ -1024,6 +1200,12 @@ def main():
         print("⚡ === ALEXEY TURCHIN GEMINI 2.0 FLASH КОММЕНТАТОР → TELEGRAM ГРУППА ===")
         print("🌍 Источники: Русские + Английские научные новости")
         print("🔄 Защита от повторов: ДА")
+        print("💾 Автосохранение в репозиторий: ДА")
+        
+        # ДИАГНОСТИКА СРЕДЫ ВЫПОЛНЕНИЯ
+        if not check_environment():
+            print("❌ Проблемы с рабочей средой!")
+            return False
         
         # Проверяем API ключи
         gemini_api_key = os.getenv('GEMINI_API_KEY')
@@ -1045,13 +1227,18 @@ def main():
         
         genai.configure(api_key=gemini_api_key)
         
-        # 1. ЗАГРУЖАЕМ Facts.txt ОДИН РАЗ
+        # 1. ПРИНУДИТЕЛЬНО создаём необходимые директории
+        if not ensure_directory_exists('commentary'):
+            print("❌ Не удалось создать папку commentary")
+            return False
+        
+        # 2. ЗАГРУЖАЕМ Facts.txt ОДИН РАЗ
         facts = load_facts()
         if not facts:
             print("❌ Нет фактов")
             return False
         
-        # 2. ИНИЦИАЛИЗИРУЕМ модель ОДИН РАЗ с Facts
+        # 3. ИНИЦИАЛИЗИРУЕМ модель ОДИН РАЗ с Facts
         model, init_response = initialize_gemini_2_0_flash_once(facts)
         if not model:
             print("❌ Gemini 2.0 Flash не инициализирован")
@@ -1060,54 +1247,13 @@ def main():
         print("⏱️ Ждем 10 секунд перед следующим запросом...")
         time.sleep(10)
         
-        # 3. ПОЛУЧАЕМ НОВУЮ новость (с ОБЯЗАТЕЛЬНОЙ проверкой на повторы)
+        # 4. ПОЛУЧАЕМ НОВУЮ новость (с ОБЯЗАТЕЛЬНОЙ проверкой на повторы)
         selected_news = get_top_science_news()
         if not selected_news:
             print("❌ Нет новых научных новостей (все уже обработаны)")
             return False
         
-        # 4. ГЕНЕРИРУЕМ комментарий БЕЗ повторной загрузки Facts
+        # 5. ГЕНЕРИРУЕМ комментарий БЕЗ повторной загрузки Facts
         commentary, prompt = generate_science_commentary(model, selected_news)
         if not commentary:
-            print("❌ Gemini 2.0 Flash не создал комментарий")
-            return False
-        
-        # 5. СОХРАНЯЕМ результаты с детальным логированием
-        print("💾 Сохраняем результаты...")
-        save_success = save_science_results(commentary, selected_news, init_response, prompt)
-        if not save_success:
-            print("⚠️ Ошибка сохранения файлов, но продолжаем...")
-        
-        # 6. ДОБАВЛЯЕМ новость в список обработанных ОБЯЗАТЕЛЬНО
-        print("📚 Обновляем список обработанных новостей...")
-        processed_news = load_processed_news()
-        processed_news = add_news_to_processed(selected_news, processed_news, len(commentary))
-        save_success_processed = save_processed_news(processed_news)
-        
-        if not save_success_processed:
-            print("❌ КРИТИЧЕСКАЯ ОШИБКА: Не удалось сохранить список обработанных новостей!")
-            print("⚠️ Это может привести к повторам в будущем!")
-        
-        # 7. ОТПРАВЛЯЕМ в Telegram
-        telegram_text = format_for_telegram_group(commentary, selected_news)
-        telegram_success = send_to_telegram_group(telegram_bot_token, telegram_group_id, telegram_text)
-        
-        if telegram_success:
-            print("🎉 УСПЕХ! Комментарий Alexey Turchin (Gemini 2.0 Flash) опубликован!")
-            print("👥 Группа: Alexey & Alexey Turchin sideload news comments")
-            print(f"🎲 Новость: {selected_news['title'][:60]}... - {selected_news['source']}")
-            print(f"📊 Всего обработано новостей: {len(processed_news)}")
-            print(f"🔑 Хеш обработанной новости: {generate_news_hash(selected_news['title'], selected_news['description'])}")
-            return True
-        else:
-            print("❌ Ошибка публикации в Telegram группе")
-            return False
-        
-    except Exception as e:
-        print(f"❌ КРИТИЧЕСКАЯ ОШИБКА: {e}")
-        traceback.print_exc()
-        return False
-
-if __name__ == "__main__":
-    success = main()
-    sys.exit(0 if success else 1)
+            print("❌ Gemini 2.0 Flash не созд
