@@ -218,13 +218,13 @@ def save_processed_news(processed_news):
             json.dump(processed_news, f, ensure_ascii=False, indent=2)
         print(f"✅ Данные записаны в файл")
         
-        # Принудительная синхронизация диска
+        # Принудительная синхронизация диска (ИСПРАВЛЕНО)
         try:
-            import os
-            os.sync() if hasattr(os, 'sync') else None
-            print(f"💾 Синхронизация диска выполнена")
-        except:
-            pass
+            if hasattr(os, 'sync'):
+                os.sync()
+                print(f"💾 Синхронизация диска выполнена")
+        except Exception as sync_e:
+            print(f"⚠️ Синхронизация диска не удалась: {sync_e}")
         
         # Детальная проверка созданного файла
         if os.path.exists(processed_file):
@@ -1111,12 +1111,13 @@ def save_science_results(commentary, selected_news, init_response, prompt):
             f.write("## 💬 Комментарий Alexey Turchin:\n\n")
             f.write(f"{commentary}\n\n")
         
-        # Принудительная синхронизация
+        # Принудительная синхронизация (ИСПРАВЛЕНО)
         try:
-            import os
-            os.sync() if hasattr(os, 'sync') else None
-        except:
-            pass
+            if hasattr(os, 'sync'):
+                os.sync()
+                print(f"💾 Синхронизация диска выполнена")
+        except Exception as sync_e:
+            print(f"⚠️ Синхронизация диска не удалась: {sync_e}")
         
         # Сохраняем простой текстовый файл
         print(f"💾 Создаём текстовый файл...")
@@ -1151,12 +1152,13 @@ def save_science_results(commentary, selected_news, init_response, prompt):
             f.write(f"Новость: {selected_news['importance_score']} очков - {selected_news['title'][:50]}... - {selected_news['source']}\n")
             f.write(f"Хеш новости: {generate_news_hash(selected_news['title'], selected_news['description'])}\n")
         
-        # Принудительная синхронизация снова
+        # Принудительная синхронизация снова (ИСПРАВЛЕНО)
         try:
-            import os
-            os.sync() if hasattr(os, 'sync') else None
-        except:
-            pass
+            if hasattr(os, 'sync'):
+                os.sync()
+                print(f"💾 Финальная синхронизация диска выполнена")
+        except Exception as sync_e:
+            print(f"⚠️ Финальная синхронизация диска не удалась: {sync_e}")
         
         # ДЕТАЛЬНАЯ проверка созданных файлов
         print(f"🔍 Проверяем созданные файлы...")
