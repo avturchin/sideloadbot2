@@ -11,6 +11,8 @@ jobs:
     
     steps:
     - uses: actions/checkout@v3
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
     
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -27,6 +29,11 @@ jobs:
         echo "Размер: $(wc -c < Facts.txt) байт"
         md5sum Facts.txt
     
+    - name: Create necessary directories
+      run: |
+        mkdir -p commentary
+        echo "📁 Папка commentary создана"
+    
     - name: Run Science News Bot
       env:
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -38,3 +45,36 @@ jobs:
         echo "Размер: $(wc -c < Facts.txt) байт"
         md5sum Facts.txt
         python news_bot.py
+    
+    - name: Check created files
+      run: |
+        echo "📁 Проверяем созданные файлы:"
+        ls -la
+        echo "📁 Содержимое папки commentary:"
+        ls -la commentary/ || echo "Папка commentary пуста или не существует"
+        echo "📄 Проверяем processed_news.json:"
+        if [ -f "processed_news.json" ]; then
+          echo "✅ processed_news.json существует"
+          wc -l processed_news.json
+          head -5 processed_news.json
+        else
+          echo "❌ processed_news.json не найден"
+        fi
+    
+    - name: Configure Git
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+    
+    - name: Commit and push changes
+      run: |
+        git add .
+        if git diff --staged --quiet; then
+          echo "📝 Нет изменений для коммита"
+        else
+          echo "📝 Коммитим новые файлы:"
+          git status
+          git commit -m "🤖 Добавлены новые комментарии Alexey Turchin ($(date '+%Y-%m-%d %H:%M'))"
+          git push
+          echo "✅ Файлы успешно сохранены в репозиторий!"
+        fi
