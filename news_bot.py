@@ -8,6 +8,7 @@ import traceback
 import sys
 import json
 import random
+import hashlib
 
 def load_facts():
     """Загружает Facts.txt БЕЗ обрезания"""
@@ -34,6 +35,78 @@ def load_facts():
         print(f"❌ Ошибка работы с Facts.txt: {e}")
         traceback.print_exc()
         return ""
+
+def load_processed_news():
+    """Загружает список уже обработанных новостей"""
+    processed_file = 'processed_news.json'
+    
+    if not os.path.exists(processed_file):
+        print("📝 Файл processed_news.json не найден, создаём новый...")
+        return {}
+    
+    try:
+        with open(processed_file, 'r', encoding='utf-8') as f:
+            processed = json.load(f)
+        print(f"📚 Загружено {len(processed)} обработанных новостей")
+        return processed
+    except Exception as e:
+        print(f"❌ Ошибка загрузки processed_news.json: {e}")
+        return {}
+
+def save_processed_news(processed_news):
+    """Сохраняет список обработанных новостей"""
+    processed_file = 'processed_news.json'
+    
+    try:
+        with open(processed_file, 'w', encoding='utf-8') as f:
+            json.dump(processed_news, f, ensure_ascii=False, indent=2)
+        print(f"💾 Сохранено {len(processed_news)} обработанных новостей")
+        return True
+    except Exception as e:
+        print(f"❌ Ошибка сохранения processed_news.json: {e}")
+        return False
+
+def generate_news_hash(title, description):
+    """Генерирует уникальный хеш для новости на основе заголовка и описания"""
+    # Нормализуем текст: убираем лишние пробелы, приводим к нижнему регистру
+    normalized_title = ' '.join(title.lower().split())
+    normalized_desc = ' '.join(description.lower().split())
+    
+    # Создаём хеш из заголовка и первых 500 символов описания
+    content = normalized_title + "|" + normalized_desc[:500]
+    
+    # Генерируем SHA256 хеш
+    news_hash = hashlib.sha256(content.encode('utf-8')).hexdigest()[:16]
+    return news_hash
+
+def is_news_already_processed(news, processed_news):
+    """Проверяет, была ли новость уже обработана"""
+    news_hash = generate_news_hash(news['title'], news['description'])
+    
+    if news_hash in processed_news:
+        processed_info = processed_news[news_hash]
+        print(f"🔄 Новость УЖЕ ОБРАБОТАНА: {news['title'][:50]}...")
+        print(f"   📅 Дата обработки: {processed_info['date']}")
+        print(f"   🌍 Источник: {processed_info['source']}")
+        return True
+    
+    return False
+
+def add_news_to_processed(news, processed_news, commentary_length):
+    """Добавляет новость в список обработанных"""
+    news_hash = generate_news_hash(news['title'], news['description'])
+    
+    processed_news[news_hash] = {
+        'title': news['title'][:100] + "..." if len(news['title']) > 100 else news['title'],
+        'source': news['source'],
+        'date': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        'importance_score': news['importance_score'],
+        'commentary_length': commentary_length,
+        'hash': news_hash
+    }
+    
+    print(f"✅ Новость добавлена в обработанные: {news_hash}")
+    return processed_news
 
 def estimate_tokens(text):
     """Примерная оценка токенов (1 токен ≈ 3-4 символа для русского)"""
@@ -225,9 +298,12 @@ def limit_news_content(news):
     return news
 
 def get_top_science_news():
-    """Получает научные новости и возвращает СЛУЧАЙНУЮ из ТОП-5"""
+    """Получает научные новости и возвращает СЛУЧАЙНУЮ из ТОП-5 НЕОБРАБОТАННЫХ"""
     print("🔬 Получаем научные новости...")
     all_science_news = []
+    
+    # Загружаем список обработанных новостей
+    processed_news = load_processed_news()
     
     sources = [
         # Русские источники
@@ -325,12 +401,14 @@ def get_top_science_news():
                                 'link': link
                             }
                             
-                            # Ограничиваем размер новости
-                            news_item = limit_news_content(news_item)
-                            
-                            all_science_news.append(news_item)
-                            
-                            print(f"🔬 {source['name']}: {title[:60]}...")
+                            # Проверяем, не была ли новость уже обработана
+                            if not is_news_already_processed(news_item, processed_news):
+                                # Ограничиваем размер новости
+                                news_item = limit_news_content(news_item)
+                                all_science_news.append(news_item)
+                                print(f"🔬 {source['name']}: {title[:60]}...")
+                            else:
+                                print(f"⏩ Пропускаем уже обработанную новость: {title[:60]}...")
                         
                     except Exception as e:
                         print(f"⚠️ Ошибка новости: {e}")
@@ -340,13 +418,17 @@ def get_top_science_news():
             print(f"❌ Ошибка {source['name']}: {e}")
             continue
     
-    print(f"🔬 Всего научных новостей: {len(all_science_news)}")
+    print(f"🔬 Всего НОВЫХ научных новостей: {len(all_science_news)}")
+    
+    if not all_science_news:
+        print("❌ Все новости уже были обработаны!")
+        return None
     
     ranked_news = rank_science_news(all_science_news)
     
     if ranked_news:
         top_5_news = ranked_news[:5]
-        print(f"🏆 ТОП-5 новостей:")
+        print(f"🏆 ТОП-5 НОВЫХ новостей:")
         for i, news in enumerate(top_5_news, 1):
             print(f"   {i}. {news['title'][:60]}... (очки: {news['importance_score']}) - {news['source']}")
         
@@ -732,25 +814,60 @@ def format_for_telegram_group(commentary, selected_news):
     
     return telegram_text
 
+def create_safe_filename(title, source, timestamp):
+    """Создаёт безопасное имя файла из заголовка новости"""
+    # Убираем опасные символы и ограничиваем длину
+    safe_title = "".join(c for c in title if c.isalnum() or c in (' ', '-', '_')).strip()
+    safe_title = ' '.join(safe_title.split())  # Убираем двойные пробелы
+    
+    # Ограничиваем длину заголовка
+    if len(safe_title) > 50:
+        safe_title = safe_title[:50].rsplit(' ', 1)[0]  # Обрезаем по словам
+    
+    # Заменяем пробелы на подчёркивания
+    safe_title = safe_title.replace(' ', '_')
+    
+    # Создаём финальное имя файла
+    filename = f"{timestamp}_{source}_{safe_title}"
+    
+    # Убираем двойные подчёркивания
+    filename = '_'.join(filter(None, filename.split('_')))
+    
+    return filename
+
 def save_science_results(commentary, selected_news, init_response, prompt):
     """Сохраняет результаты анализа научной новости в папку commentary"""
     directory = 'commentary'
     
     if not os.path.exists(directory):
-        print(f"❌ Папка {directory} не существует!")
-        return False
+        print(f"📁 Создаём папку: {directory}")
+        try:
+            os.makedirs(directory)
+        except Exception as e:
+            print(f"❌ Ошибка создания папки {directory}: {e}")
+            return False
     
-    print(f"📁 Используем существующую папку: {directory}")
+    print(f"📁 Используем папку: {directory}")
     
     now = datetime.now()
-    timestamp = now.strftime("%Y-%m-%d_%H-%M-%S") + f"-{now.microsecond}"
+    timestamp = now.strftime("%Y%m%d_%H%M%S")
     date_formatted = now.strftime("%d.%m.%Y %H:%M:%S")
     
     try:
-        main_filename = os.path.join(directory, f'science_turchin_flash20_{timestamp}.md')
+        # Создаём безопасное имя файла
+        safe_filename = create_safe_filename(selected_news['title'], selected_news['source'], timestamp)
         
-        print(f"💾 Сохраняем комментарий Gemini 2.0 Flash: {main_filename}")
+        # Markdown файл
+        main_filename = os.path.join(directory, f'{safe_filename}_turchin_flash20.md')
         
+        # Текстовый файл (простой формат)
+        txt_filename = os.path.join(directory, f'{safe_filename}_turchin_flash20.txt')
+        
+        print(f"💾 Сохраняем комментарий Gemini 2.0 Flash:")
+        print(f"   📄 Markdown: {main_filename}")
+        print(f"   📄 Текст: {txt_filename}")
+        
+        # Сохраняем Markdown файл
         with open(main_filename, 'w', encoding='utf-8') as f:
             f.write(f"# 💬 Комментарии от Alexey Turchin (Gemini 2.0 Flash)\n")
             f.write(f"## {date_formatted}\n\n")
@@ -768,7 +885,26 @@ def save_science_results(commentary, selected_news, init_response, prompt):
             f.write("## 💬 Комментарий Alexey Turchin:\n\n")
             f.write(f"{commentary}\n\n")
         
-        stats_filename = os.path.join(directory, f'science_stats_flash20_{timestamp}.txt')
+        # Сохраняем простой текстовый файл
+        with open(txt_filename, 'w', encoding='utf-8') as f:
+            f.write(f"КОММЕНТАРИИ ОТ ALEXEY TURCHIN (GEMINI 2.0 FLASH)\n")
+            f.write(f"Дата: {date_formatted}\n")
+            f.write("=" * 50 + "\n\n")
+            f.write("ИСХОДНАЯ НОВОСТЬ:\n\n")
+            f.write(f"Заголовок: {selected_news['title']}\n\n")
+            if selected_news['description']:
+                f.write(f"Описание: {selected_news['description']}\n\n")
+            f.write(f"Источник: {selected_news['source']}\n")
+            if selected_news['link']:
+                f.write(f"Ссылка: {selected_news['link']}\n")
+            f.write(f"Важность: {selected_news['importance_score']} очков\n\n")
+            f.write("=" * 50 + "\n\n")
+            f.write("КОММЕНТАРИЙ ALEXEY TURCHIN:\n\n")
+            f.write(f"{commentary}\n\n")
+            f.write("=" * 50 + "\n")
+        
+        # Статистика
+        stats_filename = os.path.join(directory, f'{safe_filename}_stats.txt')
         with open(stats_filename, 'w', encoding='utf-8') as f:
             f.write("=== ALEXEY TURCHIN GEMINI 2.0 FLASH КОММЕНТАРИЙ ===\n")
             f.write(f"Время: {date_formatted}\n")
@@ -779,9 +915,12 @@ def save_science_results(commentary, selected_news, init_response, prompt):
             f.write(f"Длина комментария: {len(commentary)} символов\n")
             f.write(f"ID: {timestamp}\n")
             f.write(f"Новость: {selected_news['importance_score']} очков - {selected_news['title'][:50]}... - {selected_news['source']}\n")
+            f.write(f"Хеш новости: {generate_news_hash(selected_news['title'], selected_news['description'])}\n")
         
-        print(f"✅ Комментарий 2.0 Flash сохранён в: {main_filename}")
-        print(f"📊 Статистика: {stats_filename}")
+        print(f"✅ Файлы сохранены:")
+        print(f"   📄 {main_filename}")
+        print(f"   📄 {txt_filename}")
+        print(f"   📊 {stats_filename}")
         
         return True
         
@@ -794,6 +933,7 @@ def main():
     try:
         print("⚡ === ALEXEY TURCHIN GEMINI 2.0 FLASH КОММЕНТАТОР → TELEGRAM ГРУППА ===")
         print("🌍 Источники: Русские + Английские научные новости")
+        print("🔄 Защита от повторов: ДА")
         
         # Проверяем API ключи
         gemini_api_key = os.getenv('GEMINI_API_KEY')
@@ -830,10 +970,10 @@ def main():
         print("⏱️ Ждем 10 секунд перед следующим запросом...")
         time.sleep(10)
         
-        # 3. ПОЛУЧАЕМ новость (с ограничением размера)
+        # 3. ПОЛУЧАЕМ НОВУЮ новость (с проверкой на повторы)
         selected_news = get_top_science_news()
         if not selected_news:
-            print("❌ Нет научных новостей")
+            print("❌ Нет новых научных новостей")
             return False
         
         # 4. ГЕНЕРИРУЕМ комментарий БЕЗ повторной загрузки Facts
@@ -847,7 +987,12 @@ def main():
         if not save_success:
             print("⚠️ Ошибка сохранения, но продолжаем...")
         
-        # 6. ОТПРАВЛЯЕМ в Telegram
+        # 6. ДОБАВЛЯЕМ новость в список обработанных
+        processed_news = load_processed_news()
+        processed_news = add_news_to_processed(selected_news, processed_news, len(commentary))
+        save_processed_news(processed_news)
+        
+        # 7. ОТПРАВЛЯЕМ в Telegram
         telegram_text = format_for_telegram_group(commentary, selected_news)
         telegram_success = send_to_telegram_group(telegram_bot_token, telegram_group_id, telegram_text)
         
@@ -855,6 +1000,7 @@ def main():
             print("🎉 УСПЕХ! Комментарий Alexey Turchin (Gemini 2.0 Flash) опубликован!")
             print("👥 Группа: Alexey & Alexey Turchin sideload news comments")
             print(f"🎲 Новость: {selected_news['title'][:60]}... - {selected_news['source']}")
+            print(f"📊 Всего обработано новостей: {len(processed_news)}")
             return True
         else:
             print("❌ Ошибка публикации в Telegram группе")
