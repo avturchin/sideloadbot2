@@ -1256,4 +1256,52 @@ def main():
         # 5. ГЕНЕРИРУЕМ комментарий БЕЗ повторной загрузки Facts
         commentary, prompt = generate_science_commentary(model, selected_news)
         if not commentary:
-            print("❌ Gemini 2.0 Flash не созд
+            print("❌ Gemini 2.0 Flash не создал комментарий")
+            return False
+        
+        # 6. СОХРАНЯЕМ результаты с МАКСИМАЛЬНОЙ диагностикой
+        print("💾 === НАЧИНАЕМ СОХРАНЕНИЕ ФАЙЛОВ ===")
+        save_success = save_science_results(commentary, selected_news, init_response, prompt)
+        if not save_success:
+            print("❌ КРИТИЧЕСКАЯ ОШИБКА СОХРАНЕНИЯ ФАЙЛОВ!")
+            print("⚠️ Продолжаем, но файлы могут быть не сохранены...")
+        
+        # 7. ДОБАВЛЯЕМ новость в список обработанных ОБЯЗАТЕЛЬНО
+        print("📚 === ОБНОВЛЯЕМ СПИСОК ОБРАБОТАННЫХ НОВОСТЕЙ ===")
+        processed_news = load_processed_news()
+        processed_news = add_news_to_processed(selected_news, processed_news, len(commentary))
+        save_success_processed = save_processed_news(processed_news)
+        
+        if not save_success_processed:
+            print("❌ КРИТИЧЕСКАЯ ОШИБКА: Не удалось сохранить список обработанных новостей!")
+            print("⚠️ Это ГАРАНТИРОВАННО приведёт к повторам в будущем!")
+        
+        # 8. ОТПРАВЛЯЕМ в Telegram
+        telegram_text = format_for_telegram_group(commentary, selected_news)
+        telegram_success = send_to_telegram_group(telegram_bot_token, telegram_group_id, telegram_text)
+        
+        # 9. ФИНАЛЬНАЯ ДИАГНОСТИКА
+        print("\n🔍 === ФИНАЛЬНАЯ ДИАГНОСТИКА ===")
+        check_environment()
+        
+        if telegram_success:
+            print("🎉 УСПЕХ! Комментарий Alexey Turchin (Gemini 2.0 Flash) опубликован!")
+            print("👥 Группа: Alexey & Alexey Turchin sideload news comments")
+            print(f"🎲 Новость: {selected_news['title'][:60]}... - {selected_news['source']}")
+            print(f"📊 Всего обработано новостей: {len(processed_news)}")
+            print(f"🔑 Хеш обработанной новости: {generate_news_hash(selected_news['title'], selected_news['description'])}")
+            print(f"💾 Файлы сохранены: {'ДА' if save_success else 'НЕТ'}")
+            print(f"📚 Список обновлён: {'ДА' if save_success_processed else 'НЕТ'}")
+            return True
+        else:
+            print("❌ Ошибка публикации в Telegram группе")
+            return False
+        
+    except Exception as e:
+        print(f"❌ КРИТИЧЕСКАЯ ОШИБКА: {e}")
+        traceback.print_exc()
+        return False
+
+if __name__ == "__main__":
+    success = main()
+    sys.exit(0 if success else 1)
