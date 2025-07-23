@@ -40,43 +40,97 @@ def load_processed_news():
     """Загружает список уже обработанных новостей"""
     processed_file = 'processed_news.json'
     
+    print(f"📚 Проверяем файл обработанных новостей: {processed_file}")
+    
     if not os.path.exists(processed_file):
-        print("📝 Файл processed_news.json не найден, создаём новый...")
-        return {}
+        print(f"📝 Файл {processed_file} не найден, создаём новый пустой список...")
+        empty_data = {}
+        try:
+            with open(processed_file, 'w', encoding='utf-8') as f:
+                json.dump(empty_data, f, ensure_ascii=False, indent=2)
+            print(f"✅ Создан пустой файл {processed_file}")
+        except Exception as e:
+            print(f"❌ Ошибка создания {processed_file}: {e}")
+        return empty_data
     
     try:
         with open(processed_file, 'r', encoding='utf-8') as f:
             processed = json.load(f)
-        print(f"📚 Загружено {len(processed)} обработанных новостей")
+        print(f"📚 Загружено {len(processed)} обработанных новостей из {processed_file}")
+        
+        # Показываем последние 3 обработанные новости
+        if processed:
+            sorted_news = sorted(processed.items(), key=lambda x: x[1]['date'], reverse=True)[:3]
+            print("🔍 Последние обработанные новости:")
+            for hash_id, info in sorted_news:
+                print(f"   • {info['date']} - {info['source']} - {info['title'][:50]}...")
+        
         return processed
     except Exception as e:
-        print(f"❌ Ошибка загрузки processed_news.json: {e}")
+        print(f"❌ Ошибка загрузки {processed_file}: {e}")
+        print("📝 Создаём новый пустой список...")
         return {}
 
 def save_processed_news(processed_news):
-    """Сохраняет список обработанных новостей"""
+    """Сохраняет список обработанных новостей с детальным логированием"""
     processed_file = 'processed_news.json'
     
+    print(f"💾 Сохраняем {len(processed_news)} обработанных новостей в {processed_file}...")
+    
     try:
+        # Создаём резервную копию если файл существует
+        if os.path.exists(processed_file):
+            backup_file = f"{processed_file}.backup"
+            try:
+                with open(processed_file, 'r', encoding='utf-8') as src:
+                    with open(backup_file, 'w', encoding='utf-8') as dst:
+                        dst.write(src.read())
+                print(f"📋 Создана резервная копия: {backup_file}")
+            except Exception as backup_e:
+                print(f"⚠️ Не удалось создать резервную копию: {backup_e}")
+        
+        # Сохраняем основной файл
         with open(processed_file, 'w', encoding='utf-8') as f:
             json.dump(processed_news, f, ensure_ascii=False, indent=2)
-        print(f"💾 Сохранено {len(processed_news)} обработанных новостей")
-        return True
+        
+        # Проверяем что файл сохранился
+        if os.path.exists(processed_file):
+            file_size = os.path.getsize(processed_file)
+            print(f"✅ Файл {processed_file} сохранён успешно ({file_size} байт)")
+            
+            # Проверяем содержимое
+            try:
+                with open(processed_file, 'r', encoding='utf-8') as f:
+                    check_data = json.load(f)
+                print(f"✅ Проверка: в файле {len(check_data)} записей")
+                return True
+            except Exception as check_e:
+                print(f"❌ Ошибка проверки файла: {check_e}")
+                return False
+        else:
+            print(f"❌ Файл {processed_file} не был создан!")
+            return False
+            
     except Exception as e:
-        print(f"❌ Ошибка сохранения processed_news.json: {e}")
+        print(f"❌ Ошибка сохранения {processed_file}: {e}")
+        traceback.print_exc()
         return False
 
 def generate_news_hash(title, description):
     """Генерирует уникальный хеш для новости на основе заголовка и описания"""
     # Нормализуем текст: убираем лишние пробелы, приводим к нижнему регистру
-    normalized_title = ' '.join(title.lower().split())
-    normalized_desc = ' '.join(description.lower().split())
+    normalized_title = ' '.join(title.lower().strip().split())
+    normalized_desc = ' '.join(description.lower().strip().split())
     
     # Создаём хеш из заголовка и первых 500 символов описания
     content = normalized_title + "|" + normalized_desc[:500]
     
     # Генерируем SHA256 хеш
     news_hash = hashlib.sha256(content.encode('utf-8')).hexdigest()[:16]
+    
+    print(f"🔍 Хеш для новости: {news_hash}")
+    print(f"   📰 Заголовок: {title[:50]}...")
+    
     return news_hash
 
 def is_news_already_processed(news, processed_news):
@@ -85,11 +139,14 @@ def is_news_already_processed(news, processed_news):
     
     if news_hash in processed_news:
         processed_info = processed_news[news_hash]
-        print(f"🔄 Новость УЖЕ ОБРАБОТАНА: {news['title'][:50]}...")
+        print(f"🔄 НАЙДЕН ДУБЛИКАТ! Новость УЖЕ ОБРАБОТАНА:")
+        print(f"   📰 Заголовок: {news['title'][:60]}...")
         print(f"   📅 Дата обработки: {processed_info['date']}")
         print(f"   🌍 Источник: {processed_info['source']}")
+        print(f"   🔑 Хеш: {news_hash}")
         return True
     
+    print(f"✅ Новость НЕ обрабатывалась ранее (хеш: {news_hash})")
     return False
 
 def add_news_to_processed(news, processed_news, commentary_length):
@@ -102,10 +159,15 @@ def add_news_to_processed(news, processed_news, commentary_length):
         'date': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         'importance_score': news['importance_score'],
         'commentary_length': commentary_length,
-        'hash': news_hash
+        'hash': news_hash,
+        'full_title': news['title']  # Сохраняем полный заголовок
     }
     
-    print(f"✅ Новость добавлена в обработанные: {news_hash}")
+    print(f"✅ Новость добавлена в обработанные:")
+    print(f"   🔑 Хеш: {news_hash}")
+    print(f"   📰 Заголовок: {news['title'][:60]}...")
+    print(f"   🌍 Источник: {news['source']}")
+    
     return processed_news
 
 def estimate_tokens(text):
@@ -302,8 +364,9 @@ def get_top_science_news():
     print("🔬 Получаем научные новости...")
     all_science_news = []
     
-    # Загружаем список обработанных новостей
+    # Загружаем список обработанных новостей В НАЧАЛЕ
     processed_news = load_processed_news()
+    print(f"📚 Загружен список из {len(processed_news)} обработанных новостей")
     
     sources = [
         # Русские источники
@@ -366,6 +429,9 @@ def get_top_science_news():
         }
     ]
     
+    total_found = 0
+    total_duplicates = 0
+    
     for source in sources:
         try:
             print(f"🔬 Анализируем {source['name']}...")
@@ -401,14 +467,17 @@ def get_top_science_news():
                                 'link': link
                             }
                             
-                            # Проверяем, не была ли новость уже обработана
+                            total_found += 1
+                            
+                            # ОБЯЗАТЕЛЬНАЯ проверка на дубликаты
                             if not is_news_already_processed(news_item, processed_news):
                                 # Ограничиваем размер новости
                                 news_item = limit_news_content(news_item)
                                 all_science_news.append(news_item)
-                                print(f"🔬 {source['name']}: {title[:60]}...")
+                                print(f"✅ НОВАЯ: {source['name']}: {title[:60]}...")
                             else:
-                                print(f"⏩ Пропускаем уже обработанную новость: {title[:60]}...")
+                                total_duplicates += 1
+                                print(f"⏩ ДУБЛИКАТ: {source['name']}: {title[:60]}...")
                         
                     except Exception as e:
                         print(f"⚠️ Ошибка новости: {e}")
@@ -418,10 +487,13 @@ def get_top_science_news():
             print(f"❌ Ошибка {source['name']}: {e}")
             continue
     
-    print(f"🔬 Всего НОВЫХ научных новостей: {len(all_science_news)}")
+    print(f"📊 СТАТИСТИКА:")
+    print(f"   🔬 Всего найдено научных новостей: {total_found}")
+    print(f"   ⏩ Дубликатов пропущено: {total_duplicates}")
+    print(f"   ✅ НОВЫХ новостей: {len(all_science_news)}")
     
     if not all_science_news:
-        print("❌ Все новости уже были обработаны!")
+        print("❌ ВСЕ НОВОСТИ УЖЕ БЫЛИ ОБРАБОТАНЫ!")
         return None
     
     ranked_news = rank_science_news(all_science_news)
@@ -827,8 +899,11 @@ def create_safe_filename(title, source, timestamp):
     # Заменяем пробелы на подчёркивания
     safe_title = safe_title.replace(' ', '_')
     
+    # Убираем спецсимволы из источника
+    safe_source = "".join(c for c in source if c.isalnum() or c in ('-', '_')).strip()
+    
     # Создаём финальное имя файла
-    filename = f"{timestamp}_{source}_{safe_title}"
+    filename = f"{timestamp}_{safe_source}_{safe_title}"
     
     # Убираем двойные подчёркивания
     filename = '_'.join(filter(None, filename.split('_')))
@@ -839,15 +914,18 @@ def save_science_results(commentary, selected_news, init_response, prompt):
     """Сохраняет результаты анализа научной новости в папку commentary"""
     directory = 'commentary'
     
+    print(f"📁 Проверяем папку: {directory}")
+    
     if not os.path.exists(directory):
         print(f"📁 Создаём папку: {directory}")
         try:
             os.makedirs(directory)
+            print(f"✅ Папка {directory} создана успешно")
         except Exception as e:
             print(f"❌ Ошибка создания папки {directory}: {e}")
             return False
-    
-    print(f"📁 Используем папку: {directory}")
+    else:
+        print(f"✅ Папка {directory} уже существует")
     
     now = datetime.now()
     timestamp = now.strftime("%Y%m%d_%H%M%S")
@@ -857,13 +935,15 @@ def save_science_results(commentary, selected_news, init_response, prompt):
         # Создаём безопасное имя файла
         safe_filename = create_safe_filename(selected_news['title'], selected_news['source'], timestamp)
         
+        print(f"📝 Создаём файлы с базовым именем: {safe_filename}")
+        
         # Markdown файл
         main_filename = os.path.join(directory, f'{safe_filename}_turchin_flash20.md')
         
         # Текстовый файл (простой формат)
         txt_filename = os.path.join(directory, f'{safe_filename}_turchin_flash20.txt')
         
-        print(f"💾 Сохраняем комментарий Gemini 2.0 Flash:")
+        print(f"💾 Сохраняем файлы:")
         print(f"   📄 Markdown: {main_filename}")
         print(f"   📄 Текст: {txt_filename}")
         
@@ -917,12 +997,22 @@ def save_science_results(commentary, selected_news, init_response, prompt):
             f.write(f"Новость: {selected_news['importance_score']} очков - {selected_news['title'][:50]}... - {selected_news['source']}\n")
             f.write(f"Хеш новости: {generate_news_hash(selected_news['title'], selected_news['description'])}\n")
         
-        print(f"✅ Файлы сохранены:")
-        print(f"   📄 {main_filename}")
-        print(f"   📄 {txt_filename}")
-        print(f"   📊 {stats_filename}")
+        # Проверяем что файлы действительно созданы
+        created_files = []
+        for filename in [main_filename, txt_filename, stats_filename]:
+            if os.path.exists(filename):
+                file_size = os.path.getsize(filename)
+                created_files.append(f"{filename} ({file_size} байт)")
+                print(f"✅ Создан: {filename} ({file_size} байт)")
+            else:
+                print(f"❌ НЕ создан: {filename}")
         
-        return True
+        if len(created_files) == 3:
+            print(f"🎉 ВСЕ ФАЙЛЫ УСПЕШНО СОХРАНЕНЫ!")
+            return True
+        else:
+            print(f"⚠️ Сохранено только {len(created_files)} из 3 файлов")
+            return False
         
     except Exception as e:
         print(f"❌ Ошибка сохранения в {directory}: {e}")
@@ -970,10 +1060,10 @@ def main():
         print("⏱️ Ждем 10 секунд перед следующим запросом...")
         time.sleep(10)
         
-        # 3. ПОЛУЧАЕМ НОВУЮ новость (с проверкой на повторы)
+        # 3. ПОЛУЧАЕМ НОВУЮ новость (с ОБЯЗАТЕЛЬНОЙ проверкой на повторы)
         selected_news = get_top_science_news()
         if not selected_news:
-            print("❌ Нет новых научных новостей")
+            print("❌ Нет новых научных новостей (все уже обработаны)")
             return False
         
         # 4. ГЕНЕРИРУЕМ комментарий БЕЗ повторной загрузки Facts
@@ -982,15 +1072,21 @@ def main():
             print("❌ Gemini 2.0 Flash не создал комментарий")
             return False
         
-        # 5. СОХРАНЯЕМ результаты
+        # 5. СОХРАНЯЕМ результаты с детальным логированием
+        print("💾 Сохраняем результаты...")
         save_success = save_science_results(commentary, selected_news, init_response, prompt)
         if not save_success:
-            print("⚠️ Ошибка сохранения, но продолжаем...")
+            print("⚠️ Ошибка сохранения файлов, но продолжаем...")
         
-        # 6. ДОБАВЛЯЕМ новость в список обработанных
+        # 6. ДОБАВЛЯЕМ новость в список обработанных ОБЯЗАТЕЛЬНО
+        print("📚 Обновляем список обработанных новостей...")
         processed_news = load_processed_news()
         processed_news = add_news_to_processed(selected_news, processed_news, len(commentary))
-        save_processed_news(processed_news)
+        save_success_processed = save_processed_news(processed_news)
+        
+        if not save_success_processed:
+            print("❌ КРИТИЧЕСКАЯ ОШИБКА: Не удалось сохранить список обработанных новостей!")
+            print("⚠️ Это может привести к повторам в будущем!")
         
         # 7. ОТПРАВЛЯЕМ в Telegram
         telegram_text = format_for_telegram_group(commentary, selected_news)
@@ -1001,6 +1097,7 @@ def main():
             print("👥 Группа: Alexey & Alexey Turchin sideload news comments")
             print(f"🎲 Новость: {selected_news['title'][:60]}... - {selected_news['source']}")
             print(f"📊 Всего обработано новостей: {len(processed_news)}")
+            print(f"🔑 Хеш обработанной новости: {generate_news_hash(selected_news['title'], selected_news['description'])}")
             return True
         else:
             print("❌ Ошибка публикации в Telegram группе")
