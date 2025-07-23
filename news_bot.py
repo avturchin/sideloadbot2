@@ -696,7 +696,7 @@ def send_to_telegram_group(bot_token, group_id, text):
         return False
 
 def format_for_telegram_group(commentary, selected_news):
-    """Форматирует комментарий для Telegram группы"""
+    """Форматирует комментарий для Telegram группы - НОВОСТЬ СНАЧАЛА"""
     now = datetime.now()
     date_formatted = now.strftime("%d.%m.%Y %H:%M")
     
@@ -706,16 +706,14 @@ def format_for_telegram_group(commentary, selected_news):
     telegram_text += f"🌍 Источник: {selected_news['source']}\n\n"
     telegram_text += "═══════════════════\n\n"
     
-    telegram_text += f"{commentary}\n\n"
-    telegram_text += "═══════════════════\n\n"
-    
-    telegram_text += f"📰 ИСХОДНАЯ НОВОСТЬ:\n\n"
+    # 📰 НОВОСТЬ СНАЧАЛА
+    telegram_text += f"📰 НАУЧНАЯ НОВОСТЬ:\n\n"
     telegram_text += f"🔬 {selected_news['title']}\n\n"
     
     if selected_news['description']:
         desc = selected_news['description']
-        if len(desc) > 400:
-            desc = desc[:400] + "..."
+        if len(desc) > 600:  # Увеличиваем лимит для показа новости
+            desc = desc[:600] + "..."
         telegram_text += f"{desc}\n\n"
     
     telegram_text += f"📰 Источник: {selected_news['source']}\n"
@@ -723,7 +721,14 @@ def format_for_telegram_group(commentary, selected_news):
     if selected_news['link']:
         telegram_text += f"🔗 Ссылка: {selected_news['link']}\n"
     
-    telegram_text += f"\n⭐ Важность: {selected_news['importance_score']} очков"
+    telegram_text += f"⭐ Важность: {selected_news['importance_score']} очков\n\n"
+    
+    telegram_text += "═══════════════════\n\n"
+    
+    # 💬 КОММЕНТАРИЙ ALEXEY TURCHIN ПОСЛЕ НОВОСТИ
+    telegram_text += f"💬 КОММЕНТАРИЙ ALEXEY TURCHIN:\n\n"
+    telegram_text += f"{commentary}\n\n"
+    telegram_text += "═══════════════════"
     
     return telegram_text
 
@@ -751,8 +756,6 @@ def save_science_results(commentary, selected_news, init_response, prompt):
             f.write(f"## {date_formatted}\n\n")
             f.write(f"*Трансгуманистический комментарий от Alexey Turchin (случайная новость)*\n\n")
             f.write("---\n\n")
-            f.write(f"{commentary}\n\n")
-            f.write("---\n\n")
             f.write("## 📰 Исходная новость:\n\n")
             f.write(f"### {selected_news['title']}\n\n")
             if selected_news['description']:
@@ -760,7 +763,10 @@ def save_science_results(commentary, selected_news, init_response, prompt):
             f.write(f"**Источник:** {selected_news['source']}\n")
             if selected_news['link']:
                 f.write(f"**Ссылка:** {selected_news['link']}\n")
-            f.write(f"**Важность:** {selected_news['importance_score']} очков\n")
+            f.write(f"**Важность:** {selected_news['importance_score']} очков\n\n")
+            f.write("---\n\n")
+            f.write("## 💬 Комментарий Alexey Turchin:\n\n")
+            f.write(f"{commentary}\n\n")
         
         stats_filename = os.path.join(directory, f'science_stats_flash20_{timestamp}.txt')
         with open(stats_filename, 'w', encoding='utf-8') as f:
