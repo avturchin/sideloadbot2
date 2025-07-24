@@ -97,5 +97,14 @@
     "commentary_length": 5069,
     "hash": "024ba003c35b47a5",
     "full_title": "The Download: what’s next for AI agents, and how Trump protects US tech companies overseas"
+  },
+  "501b82f670ad85fc": {
+    "title": "The Download: how to run an LLM, and a history of “three-parent babies”",
+    "source": "MIT Technology Review",
+    "date": "2025-07-24 04:41:35",
+    "importance_score": 21,
+    "commentary_length": 1333,
+    "hash": "501b82f670ad85fc",
+    "full_title": "The Download: how to run an LLM, and a history of “three-parent babies”"
   }
 }
