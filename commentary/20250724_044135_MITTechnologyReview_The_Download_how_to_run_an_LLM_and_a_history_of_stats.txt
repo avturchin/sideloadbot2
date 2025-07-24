@@ -1,0 +1,10 @@
+=== ALEXEY TURCHIN GEMINI 2.0 FLASH КОММЕНТАРИЙ ===
+Время: 24.07.2025 04:41:35
+Автор: Alexey Turchin (сайдлоад)
+Модель: Gemini 2.0 Flash
+Группа: Alexey & Alexey Turchin sideload news comments
+Новостей: 1 (случайная из ТОП-5)
+Длина комментария: 1333 символов
+ID: 20250724_044135
+Новость: 21 очков - The Download: how to run an LLM, and a history of ... - MIT Technology Review
+Хеш новости: 501b82f670ad85fc
