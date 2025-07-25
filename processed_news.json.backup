@@ -340,5 +340,14 @@
     "commentary_length": 7910,
     "hash": "d799e1e35496371b",
     "full_title": "Камни, которые изменили мир: какие минералы помогают новым технологиям, а какие — угрожают жизни"
+  },
+  "afc77d30843434e8": {
+    "title": "The deadly saga of the controversial gene therapy Elevidys",
+    "source": "MIT Technology Review",
+    "date": "2025-07-25 12:47:33",
+    "importance_score": 26,
+    "commentary_length": 2068,
+    "hash": "afc77d30843434e8",
+    "full_title": "The deadly saga of the controversial gene therapy Elevidys"
   }
 }
