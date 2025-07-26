@@ -1,0 +1,10 @@
+=== ALEXEY TURCHIN GEMINI 2.0 FLASH КОММЕНТАРИЙ ===
+Время: 26.07.2025 01:51:15
+Автор: Alexey Turchin (сайдлоад)
+Модель: Gemini 2.0 Flash
+Группа: Alexey & Alexey Turchin sideload news comments
+Новостей: 1 (случайная из ТОП-5)
+Длина комментария: 1875 символов
+ID: 20250726_015115
+Новость: 15 очков - DeepMind and OpenAI models solve maths problems at... - Nature
+Хеш новости: 0e0a4f6df63744c9
