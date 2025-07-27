@@ -718,5 +718,14 @@
     "commentary_length": 2285,
     "hash": "b7dd78935107ba69",
     "full_title": "Китайские ученые предупредили о климатической катастрофе из-за перегрева океанов"
+  },
+  "cd4688e7ff837960": {
+    "title": "USDA reorganization will cut agricultural and forest research",
+    "source": "Science",
+    "date": "2025-07-27 14:20:08",
+    "importance_score": 10,
+    "commentary_length": 1613,
+    "hash": "cd4688e7ff837960",
+    "full_title": "USDA reorganization will cut agricultural and forest research"
   }
 }
