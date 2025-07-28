@@ -871,5 +871,14 @@
     "commentary_length": 4382,
     "hash": "8b2a0f0a13837387",
     "full_title": "На Западе оценили мощь атомных подлодок России"
+  },
+  "7a1d2cae64963bf7": {
+    "title": "Chinese universities want students to use more AI, not less",
+    "source": "MIT Technology Review",
+    "date": "2025-07-28 10:26:36",
+    "importance_score": 16,
+    "commentary_length": 1442,
+    "hash": "7a1d2cae64963bf7",
+    "full_title": "Chinese universities want students to use more AI, not less"
   }
 }
