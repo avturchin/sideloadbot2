@@ -979,5 +979,14 @@
     "commentary_length": 1509,
     "hash": "8c0f330509039af0",
     "full_title": "Что будет, если на МКС родится ребенок?"
+  },
+  "35861d7d76eef03d": {
+    "title": "Scientists just cracked the cryptographic code behind quantum supremacy",
+    "source": "ScienceDaily",
+    "date": "2025-07-29 07:26:54",
+    "importance_score": 47,
+    "commentary_length": 2386,
+    "hash": "35861d7d76eef03d",
+    "full_title": "Scientists just cracked the cryptographic code behind quantum supremacy"
   }
 }
