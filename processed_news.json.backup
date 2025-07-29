@@ -1042,5 +1042,14 @@
     "commentary_length": 2155,
     "hash": "f50970647973ac3c",
     "full_title": "Новый зонд впервые сможет «увидеть» жизнь на Марсе, а не ее химические признаки"
+  },
+  "20739c60961202b0": {
+    "title": "OpenAI is launching a version of ChatGPT for college students",
+    "source": "MIT Technology Review",
+    "date": "2025-07-29 20:27:16",
+    "importance_score": 21,
+    "commentary_length": 5795,
+    "hash": "20739c60961202b0",
+    "full_title": "OpenAI is launching a version of ChatGPT for college students"
   }
 }
