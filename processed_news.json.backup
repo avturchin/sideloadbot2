@@ -1141,5 +1141,14 @@
     "commentary_length": 2939,
     "hash": "62526e95209622d7",
     "full_title": "В «Росатоме» создали единую базу данных материалов для 3D-печати"
+  },
+  "99abcdc35288ffd3": {
+    "title": "The Download: a 30-year old baby, and OpenAI’s push into colleges",
+    "source": "MIT Technology Review",
+    "date": "2025-07-30 12:51:02",
+    "importance_score": 21,
+    "commentary_length": 3006,
+    "hash": "99abcdc35288ffd3",
+    "full_title": "The Download: a 30-year old baby, and OpenAI’s push into colleges"
   }
 }
