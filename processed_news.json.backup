@@ -1213,5 +1213,14 @@
     "commentary_length": 2529,
     "hash": "c05de0b0dfd966f3",
     "full_title": "Roundtables: Why It’s So Hard to Make Welfare AI Fair"
+  },
+  "481de1d955d90167": {
+    "title": "Оценена глобальная эффективность вакцинации от COVID-19",
+    "source": "Lenta.ru Наука",
+    "date": "2025-07-31 06:36:31",
+    "importance_score": 20,
+    "commentary_length": 1656,
+    "hash": "481de1d955d90167",
+    "full_title": "Оценена глобальная эффективность вакцинации от COVID-19"
   }
 }
