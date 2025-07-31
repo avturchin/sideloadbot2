@@ -1,0 +1,41 @@
+КОММЕНТАРИИ ОТ ALEXEY TURCHIN (GEMINI 2.0 FLASH)
+Дата: 31.07.2025 10:26:29
+==================================================
+
+ИСХОДНАЯ НОВОСТЬ:
+
+Заголовок: Геологи открыли незамеченный ранее, но повсеместно распространенный минерал
+
+Описание: Ученые расшифровали кристаллическую структуру новой разновидности хлоритоида — минерала, в котором чередуются слои из оксида кремния и оксида металлов (алюминия, железа или магния). Обнаруженный структурный тип минерала обладает наиболее совершенным и упорядоченным строением среди всех изученных хлоритоидов. Хлоритоид-содержащие минеральные ассоциации — устойчивые «сочетания» минералов, которые образуются в определенных физико-химических условиях, — используют в качестве геотермометров для определения условий, в которых образовывались горные породы. Новая разновидность минерала позволит лучше понять, как условия его формирования влияют на атомное строение. Исследователи предполагают, что минерал широко распространен, но при этом до сих пор оставался незамеченным.
+
+Источник: Naked Science
+Ссылка: https://naked-science.ru/article/column/povsemestno-rasprostranen
+Важность: 17 очков
+
+==================================================
+
+КОММЕНТАРИЙ ALEXEY TURCHIN:
+
+Ошибка: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. [violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count"
+  quota_id: "GenerateContentInputTokensPerModelPerMinute-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-2.0-flash"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+  quota_value: 1000000
+}
+, links {
+  description: "Learn more about Gemini API quotas"
+  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+}
+, retry_delay {
+  seconds: 30
+}
+]
+
+==================================================
