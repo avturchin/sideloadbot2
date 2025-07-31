@@ -1177,5 +1177,14 @@
     "commentary_length": 667,
     "hash": "8cca230086fd80e9",
     "full_title": "The Download: how China’s universities approach AI, and the pitfalls of welfare algorithms"
+  },
+  "fac052f3c749a99a": {
+    "title": "В России разработали сверхлегкую ракету-носитель",
+    "source": "Lenta.ru Наука",
+    "date": "2025-07-30 23:23:09",
+    "importance_score": 20,
+    "commentary_length": 2407,
+    "hash": "fac052f3c749a99a",
+    "full_title": "В России разработали сверхлегкую ракету-носитель"
   }
 }
