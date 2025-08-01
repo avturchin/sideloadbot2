@@ -1483,5 +1483,14 @@
     "commentary_length": 2076,
     "hash": "9d3023ea524285cb",
     "full_title": "Rutgers physicists just discovered a strange new state of matter"
+  },
+  "91da0b8f645f765e": {
+    "title": "Forcing LLMs to be evil during training can make them nicer in the long run",
+    "source": "MIT Technology Review",
+    "date": "2025-08-01 16:30:32",
+    "importance_score": 21,
+    "commentary_length": 1852,
+    "hash": "91da0b8f645f765e",
+    "full_title": "Forcing LLMs to be evil during training can make them nicer in the long run"
   }
 }
