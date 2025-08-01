@@ -1,0 +1,10 @@
+=== ALEXEY TURCHIN GEMINI 2.0 FLASH КОММЕНТАРИЙ ===
+Время: 01.08.2025 16:30:32
+Автор: Alexey Turchin (сайдлоад)
+Модель: Gemini 2.0 Flash
+Группа: Alexey & Alexey Turchin sideload news comments
+Новостей: 1 (случайная из ТОП-5)
+Длина комментария: 1852 символов
+ID: 20250801_163032
+Новость: 21 очков - Forcing LLMs to be evil during training can make t... - MIT Technology Review
+Хеш новости: 91da0b8f645f765e
