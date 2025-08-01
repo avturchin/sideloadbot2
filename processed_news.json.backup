@@ -1375,5 +1375,14 @@
     "commentary_length": 2959,
     "hash": "9c4e79cac630dbae",
     "full_title": "Reversing Alzheimer's damage: Two cancer drugs demonstrate surprising power"
+  },
+  "4466d28b7f876c91": {
+    "title": "Vagus nerve stimulation receives US approval to treat arthritis",
+    "source": "New Scientist",
+    "date": "2025-08-01 04:15:08",
+    "importance_score": 19,
+    "commentary_length": 5050,
+    "hash": "4466d28b7f876c91",
+    "full_title": "Vagus nerve stimulation receives US approval to treat arthritis"
   }
 }
