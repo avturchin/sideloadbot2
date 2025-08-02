@@ -1645,5 +1645,14 @@
     "commentary_length": 1687,
     "hash": "c2907670656b79d2",
     "full_title": "The brain fires up immune cells when sick people are nearby"
+  },
+  "55954ab135762c45": {
+    "title": "mRNA vaccines for HIV trigger strong immune response in people",
+    "source": "Nature",
+    "date": "2025-08-02 12:43:13",
+    "importance_score": 15,
+    "commentary_length": 1593,
+    "hash": "55954ab135762c45",
+    "full_title": "mRNA vaccines for HIV trigger strong immune response in people"
   }
 }
