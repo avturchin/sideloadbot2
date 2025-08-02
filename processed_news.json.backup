@@ -1591,5 +1591,14 @@
     "commentary_length": 1506,
     "hash": "c5ca19c0b13cacd6",
     "full_title": "Гигантского палочника нового вида назвали самым тяжелым насекомым Австралии"
+  },
+  "be2e3866bed62546": {
+    "title": "Could we get quantum spookiness even without entanglement?",
+    "source": "New Scientist",
+    "date": "2025-08-02 06:31:50",
+    "importance_score": 24,
+    "commentary_length": 2017,
+    "hash": "be2e3866bed62546",
+    "full_title": "Could we get quantum spookiness even without entanglement?"
   }
 }
