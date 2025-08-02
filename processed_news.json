@@ -1618,5 +1618,14 @@
     "commentary_length": 3063,
     "hash": "a309c5b21e278bfc",
     "full_title": "The battle for Ukraine’s geological wealth"
+  },
+  "0c1713cf4384d85f": {
+    "title": "The way we train AIs makes them more likely to spout bull",
+    "source": "New Scientist",
+    "date": "2025-08-02 09:25:19",
+    "importance_score": 14,
+    "commentary_length": 2018,
+    "hash": "0c1713cf4384d85f",
+    "full_title": "The way we train AIs makes them more likely to spout bull"
   }
 }
