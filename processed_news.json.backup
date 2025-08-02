@@ -1672,5 +1672,14 @@
     "commentary_length": 2288,
     "hash": "70373bb3b1ffce31",
     "full_title": "В радиации увидели источник энергии для внеземных организмов"
+  },
+  "762bc13a62f6a6e9": {
+    "title": "DNA analysis reveals what really killed Napoleon's army in 1812",
+    "source": "New Scientist",
+    "date": "2025-08-02 15:22:57",
+    "importance_score": 14,
+    "commentary_length": 6430,
+    "hash": "762bc13a62f6a6e9",
+    "full_title": "DNA analysis reveals what really killed Napoleon's army in 1812"
   }
 }
