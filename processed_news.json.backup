@@ -1771,5 +1771,14 @@
     "commentary_length": 2921,
     "hash": "a0d27fa3fe221d45",
     "full_title": "Read an extract from Alex Foster’s sci-fi novel Circular Motion"
+  },
+  "a3c35aac432ed9ac": {
+    "title": "NASA’s Parker Solar Probe finds hidden barrier that explains the sun’s mysterious heat",
+    "source": "ScienceDaily",
+    "date": "2025-08-03 05:29:00",
+    "importance_score": 37,
+    "commentary_length": 2625,
+    "hash": "a3c35aac432ed9ac",
+    "full_title": "NASA’s Parker Solar Probe finds hidden barrier that explains the sun’s mysterious heat"
   }
 }
