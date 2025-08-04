@@ -2086,5 +2086,14 @@
     "commentary_length": 2146,
     "hash": "9980aae34b4591ad",
     "full_title": "Mysterious killer of sea stars finally identified"
+  },
+  "b2232eadf76ffdd9": {
+    "title": "Can we send a spacecraft to intercept interstellar object 3I/ATLAS?",
+    "source": "New Scientist",
+    "date": "2025-08-04 20:27:21",
+    "importance_score": 24,
+    "commentary_length": 2326,
+    "hash": "b2232eadf76ffdd9",
+    "full_title": "Can we send a spacecraft to intercept interstellar object 3I/ATLAS?"
   }
 }
