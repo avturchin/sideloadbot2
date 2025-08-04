@@ -2104,5 +2104,14 @@
     "commentary_length": 2176,
     "hash": "275be48921d50c33",
     "full_title": "Researchers discover key social factors that triple long COVID risk"
+  },
+  "f2595db9924082cb": {
+    "title": "Who’s to blame when AI agents mess up? We urgently need a new system of ethics",
+    "source": "Nature",
+    "date": "2025-08-04 22:23:47",
+    "importance_score": 20,
+    "commentary_length": 1963,
+    "hash": "f2595db9924082cb",
+    "full_title": "Who’s to blame when AI agents mess up? We urgently need a new system of ethics"
   }
 }
