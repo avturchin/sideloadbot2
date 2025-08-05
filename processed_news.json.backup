@@ -2194,5 +2194,14 @@
     "commentary_length": 2319,
     "hash": "3359300e86e7dd03",
     "full_title": "A glimpse into OpenAI’s largest ambitions"
+  },
+  "60cb82b94876f6a3": {
+    "title": "Новая модель дыхательной системы спрогнозирует болезни легких",
+    "source": "Naked Science",
+    "date": "2025-08-05 10:26:32",
+    "importance_score": 22,
+    "commentary_length": 1998,
+    "hash": "60cb82b94876f6a3",
+    "full_title": "Новая модель дыхательной системы спрогнозирует болезни легких"
   }
 }
