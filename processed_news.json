@@ -2293,5 +2293,14 @@
     "commentary_length": 2081,
     "hash": "027cc2442420d166",
     "full_title": "OpenAI has finally released open-weight language models"
+  },
+  "f4dfa5a693640e1b": {
+    "title": "These protocols will help AI agents navigate our messy lives",
+    "source": "MIT Technology Review",
+    "date": "2025-08-05 21:22:18",
+    "importance_score": 16,
+    "commentary_length": 1667,
+    "hash": "f4dfa5a693640e1b",
+    "full_title": "These protocols will help AI agents navigate our messy lives"
   }
 }

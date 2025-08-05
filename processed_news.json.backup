@@ -2284,5 +2284,14 @@
     "commentary_length": 2898,
     "hash": "6418a101b0080571",
     "full_title": "Scientists just cracked the code to editing entire chromosomes flawlessly"
+  },
+  "027cc2442420d166": {
+    "title": "OpenAI has finally released open-weight language models",
+    "source": "MIT Technology Review",
+    "date": "2025-08-05 20:24:31",
+    "importance_score": 16,
+    "commentary_length": 2081,
+    "hash": "027cc2442420d166",
+    "full_title": "OpenAI has finally released open-weight language models"
   }
 }
