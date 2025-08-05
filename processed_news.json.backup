@@ -2185,5 +2185,14 @@
     "commentary_length": 4009,
     "hash": "58a829942bb31325",
     "full_title": "Изменения в гене защитили хохлатых змееядов от яда инвазивных жаб"
+  },
+  "3359300e86e7dd03": {
+    "title": "A glimpse into OpenAI’s largest ambitions",
+    "source": "MIT Technology Review",
+    "date": "2025-08-05 09:30:08",
+    "importance_score": 21,
+    "commentary_length": 2319,
+    "hash": "3359300e86e7dd03",
+    "full_title": "A glimpse into OpenAI’s largest ambitions"
   }
 }
