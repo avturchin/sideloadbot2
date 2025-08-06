@@ -2419,5 +2419,14 @@
     "commentary_length": 5392,
     "hash": "9fb55e9049bf2f5a",
     "full_title": "Starving tumors makes cancer treatment work better"
+  },
+  "1fa6810096c69a18": {
+    "title": "The Download: OpenAI’s open-weight models, and the future of internet search",
+    "source": "MIT Technology Review",
+    "date": "2025-08-06 13:44:04",
+    "importance_score": 21,
+    "commentary_length": 2412,
+    "hash": "1fa6810096c69a18",
+    "full_title": "The Download: OpenAI’s open-weight models, and the future of internet search"
   }
 }
