@@ -2437,5 +2437,14 @@
     "commentary_length": 681,
     "hash": "ea4d7c499d31f04b",
     "full_title": "Первый в истории эксперимент по варке пива в космосе: как он пройдет и для чего?"
+  },
+  "40047030cac3f47f": {
+    "title": "Five ways that AI is learning to improve itself",
+    "source": "MIT Technology Review",
+    "date": "2025-08-06 15:27:06",
+    "importance_score": 21,
+    "commentary_length": 2478,
+    "hash": "40047030cac3f47f",
+    "full_title": "Five ways that AI is learning to improve itself"
   }
 }
