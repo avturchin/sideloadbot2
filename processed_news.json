@@ -2365,5 +2365,14 @@
     "commentary_length": 2232,
     "hash": "4040ce5ab987897a",
     "full_title": "Great Barrier Reef suffers worst coral decline on record"
+  },
+  "7ec601df27c3d9d7": {
+    "title": "Don’t train medical AI on patients’ data without their knowledge",
+    "source": "Nature",
+    "date": "2025-08-06 07:27:39",
+    "importance_score": 15,
+    "commentary_length": 3437,
+    "hash": "7ec601df27c3d9d7",
+    "full_title": "Don’t train medical AI on patients’ data without their knowledge"
   }
 }
