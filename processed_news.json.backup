@@ -3409,5 +3409,14 @@
     "commentary_length": 1443,
     "hash": "95c5b1b0e773297a",
     "full_title": "Daily briefing: US researchers fight back on key climate report"
+  },
+  "03c6c31197d58754": {
+    "title": "This quantum radar could image buried objects",
+    "source": "MIT Technology Review",
+    "date": "2025-08-11 15:25:23",
+    "importance_score": 26,
+    "commentary_length": 1326,
+    "hash": "03c6c31197d58754",
+    "full_title": "This quantum radar could image buried objects"
   }
 }
