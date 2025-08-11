@@ -3463,5 +3463,14 @@
     "commentary_length": 2341,
     "hash": "791239fd36cc62ed",
     "full_title": "Meet the early-adopter judges using AI"
+  },
+  "973f494a15a3b60e": {
+    "title": "Lost researcher's remains found on Antarctic glacier after 66 years",
+    "source": "New Scientist",
+    "date": "2025-08-11 21:20:12",
+    "importance_score": 19,
+    "commentary_length": 1737,
+    "hash": "973f494a15a3b60e",
+    "full_title": "Lost researcher's remains found on Antarctic glacier after 66 years"
   }
 }
