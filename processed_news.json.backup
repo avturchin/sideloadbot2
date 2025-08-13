@@ -3841,5 +3841,14 @@
     "commentary_length": 2039,
     "hash": "63283d7655f068da",
     "full_title": "The road to artificial general intelligence"
+  },
+  "1c37c7f1baa4d768": {
+    "title": "DNA analysis reveals West African ancestry in early medieval England",
+    "source": "New Scientist",
+    "date": "2025-08-13 19:18:05",
+    "importance_score": 19,
+    "commentary_length": 2172,
+    "hash": "1c37c7f1baa4d768",
+    "full_title": "DNA analysis reveals West African ancestry in early medieval England"
   }
 }
