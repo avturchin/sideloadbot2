@@ -4255,5 +4255,14 @@
     "commentary_length": 1689,
     "hash": "22ac05d14d769f1b",
     "full_title": "It is impossible to build a practical quantum broadcaster"
+  },
+  "d2c3d56455503916": {
+    "title": "We have detected a single electron with unprecedented speed",
+    "source": "New Scientist",
+    "date": "2025-08-15 21:18:13",
+    "importance_score": 21,
+    "commentary_length": 2364,
+    "hash": "d2c3d56455503916",
+    "full_title": "We have detected a single electron with unprecedented speed"
   }
 }
