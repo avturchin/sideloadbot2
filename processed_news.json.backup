@@ -4651,5 +4651,14 @@
     "commentary_length": 2343,
     "hash": "8156bba725df5dfb",
     "full_title": "Scientists finally tame the impossible 48-atom carbon ring"
+  },
+  "b9f4e81642c95a24": {
+    "title": "Bill McKibben makes a powerful pitch for solar in optimistic new book",
+    "source": "New Scientist",
+    "date": "2025-08-17 21:19:55",
+    "importance_score": 4,
+    "commentary_length": 1735,
+    "hash": "b9f4e81642c95a24",
+    "full_title": "Bill McKibben makes a powerful pitch for solar in optimistic new book"
   }
 }
