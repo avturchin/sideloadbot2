@@ -4750,5 +4750,14 @@
     "commentary_length": 1595,
     "hash": "b26b3cb115ce8280",
     "full_title": "Новый катализатор удалит до 78% серы из топлива всего за 15 минут"
+  },
+  "f2864bd4db8d3c0c": {
+    "title": "Beyond AlphaFold: how AI is decoding the grammar of the genome",
+    "source": "Nature",
+    "date": "2025-08-18 10:26:06",
+    "importance_score": 15,
+    "commentary_length": 2040,
+    "hash": "f2864bd4db8d3c0c",
+    "full_title": "Beyond AlphaFold: how AI is decoding the grammar of the genome"
   }
 }
